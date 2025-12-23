@@ -40,7 +40,7 @@ from typing import (
 )
 
 import ruamel.yaml
-from klayout import __version__ as _klayout_version  # type: ignore[attr-defined]
+from rlayout import __version__ as _klayout_version  # type: ignore[attr-defined]
 from pydantic import (
     BaseModel,
     Field,

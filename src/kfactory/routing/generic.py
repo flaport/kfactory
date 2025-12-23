@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
-import klayout.db as kdb
-from klayout import rdb
+import rlayout.db as kdb
+from rlayout import rdb
 from pydantic import BaseModel, Field
 
 from ..conf import config, logger

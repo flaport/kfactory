@@ -8,7 +8,7 @@ from hashlib import sha3_512
 from types import FunctionType
 from typing import TYPE_CHECKING, Any, overload
 
-import klayout.db as kdb
+import rlayout.db as kdb
 import numpy as np
 import toolz  # type: ignore[import-untyped,unused-ignore]
 

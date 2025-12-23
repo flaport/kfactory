@@ -12,7 +12,7 @@ from typing import (
     overload,
 )
 
-import klayout.db as kdb
+import rlayout.db as kdb
 
 from .conf import PROPID, config, logger
 from .exceptions import (

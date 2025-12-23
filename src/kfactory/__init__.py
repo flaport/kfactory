@@ -8,9 +8,9 @@ Uses the klayout package as a backend.
 
 __version__ = "2.2.0"
 
-import klayout.db as kdb
-from klayout import lay
-from klayout import rdb
+import rlayout.db as kdb
+from rlayout import lay
+from rlayout import rdb
 
 from .conf import config, logger, CheckInstances
 from .cross_section import (

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self
 
-import klayout.db as kdb
+import rlayout.db as kdb
 from aenum import Enum, constant  # type: ignore[import-untyped,unused-ignore]
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 

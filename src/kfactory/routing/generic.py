@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
 import rlayout.db as kdb
-from rlayout import rdb
+from .. import rdb  # rdb is None in rlayout (not implemented)
 from pydantic import BaseModel, Field
 
 from ..conf import config, logger

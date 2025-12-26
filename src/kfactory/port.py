@@ -11,7 +11,7 @@ from enum import IntEnum, IntFlag, auto
 from typing import TYPE_CHECKING, Any, Generic, Literal, Self, overload
 
 import rlayout.db as kdb
-from rlayout import rdb
+from . import rdb  # rdb is None in rlayout (not implemented)
 from pydantic import (
     BaseModel,
     model_serializer,

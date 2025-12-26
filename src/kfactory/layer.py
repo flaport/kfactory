@@ -267,7 +267,7 @@ def layerenum_from_dict(
     from .layout import get_default_kcl
 
     members: dict[str, constant[KCLayout] | tuple[int, int]] = {
-        "layout": constant(layout or get_default_kcl().layout)
+        "layout": constant(layout if layout is not None else get_default_kcl().layout)
     }
     for li in layers.model_dump().values():
         members[li.name] = li.layer, li.datatype

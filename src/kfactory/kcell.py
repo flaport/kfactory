@@ -40,7 +40,10 @@ from typing import (
 )
 
 import ruamel.yaml
-from rlayout import __version__ as _klayout_version  # type: ignore[attr-defined]
+try:
+    from rlayout import __version__ as _klayout_version  # type: ignore[attr-defined]
+except ImportError:
+    _klayout_version = "0.0.1"  # rlayout doesn't have __version__ yet
 from pydantic import (
     BaseModel,
     Field,

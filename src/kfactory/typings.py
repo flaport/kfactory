@@ -12,7 +12,6 @@ from typing import (
 )
 
 import rlayout.db as kdb
-from rlayout import lay
 from typing_extensions import TypeAliasType
 
 if TYPE_CHECKING:
@@ -90,7 +89,7 @@ SerializableShape: TypeAlias = (
     | kdb.DEdgePair
     | kdb.EdgePairs
     | kdb.Edges
-    | lay.LayerProperties
+    | kdb.LayerProperties
     | kdb.Matrix2d
     | kdb.Matrix3d
     | kdb.Path

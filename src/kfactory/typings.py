@@ -11,8 +11,8 @@ from typing import (
     TypeVar,
 )
 
-import klayout.db as kdb
-from klayout import lay
+import rlayout.db as kdb
+from rlayout import lay
 from typing_extensions import TypeAliasType
 
 if TYPE_CHECKING:

@@ -1,6 +1,6 @@
 """Core module of kfactory.
 
-Defines the [KCell][kfactory.kcell.KCell] providing klayout Cells with Ports
+Defines the [KCell][kfactory.kcell.KCell] providing rlayout Cells with Ports
 and other convenience functions.
 
 [Instance][kfactory.kcell.Instance] are the kfactory instances used to also acquire
@@ -40,7 +40,7 @@ from typing import (
 )
 
 import ruamel.yaml
-from klayout import __version__ as _klayout_version  # type: ignore[attr-defined]
+from rlayout import __version__ as _klayout_version  # type: ignore[attr-defined]
 from pydantic import (
     BaseModel,
     Field,
@@ -347,7 +347,7 @@ class ProtoKCell(GeometricObject[TUnit], Generic[TUnit, TBaseCell_co], ABC):  # 
         )
 
     def layer(self, *args: Any, **kwargs: Any) -> int:
-        """Get the layer info, convenience for `klayout.db.Layout.layer`."""
+        """Get the layer info, convenience for `rlayout.db.Layout.layer`."""
         return self._base.kcl.layout.layer(*args, **kwargs)
 
     @property
@@ -1359,7 +1359,7 @@ class ProtoTKCell(ProtoKCell[TUnit, TKCell], Generic[TUnit], ABC):  # noqa: PYI0
             filename: Path of the GDS file.
             options: KLayout options to load from the GDS. Can determine how merge
                 conflicts are handled for example. See
-                https://www.klayout.de/doc-qt5/code/class_LoadLayoutOptions.html
+                https://www.rlayout.de/doc-qt5/code/class_LoadLayoutOptions.html
             register_cells: If `True` create KCells for all cells in the GDS.
             test_merge: Check the layouts first whether they are compatible
                 (no differences).
@@ -1371,7 +1371,7 @@ class ProtoTKCell(ProtoKCell[TUnit, TKCell], Generic[TUnit], ABC):  # noqa: PYI0
                 transformations as strings, never versions have them stored and loaded
                 in their native KLayout formats.
         """
-        # see: wait for KLayout update https://github.com/KLayout/klayout/issues/1609
+        # see: wait for KLayout update https://github.com/KLayout/rlayout/issues/1609
         logger.critical(
             "KLayout <=0.28.15 (last update 2024-02-02) cannot read LayoutMetaInfo on"
             " 'Cell.read'. kfactory uses these extensively for ports, info, and "
@@ -3441,7 +3441,7 @@ class KCell(ProtoTKCell[int], DBUGeometricObject, ICreatePort):
 
 
 class VKCell(ProtoKCell[float, TVCell], UMGeometricObject, DCreatePort):
-    """Emulate `[klayout.db.Cell][klayout.db.Cell]`."""
+    """Emulate `[rlayout.db.Cell][rlayout.db.Cell]`."""
 
     @overload
     def __init__(self, *, base: TVCell) -> None: ...
@@ -3817,7 +3817,7 @@ def show(
     set_technology: bool = True,
     file_format: Literal["oas", "gds"] = "oas",
 ) -> None:
-    """Show GDS in klayout.
+    """Show GDS in rlayout.
 
     Args:
         layout: The object to show. This can be a KCell, KCLayout, Path, or string.

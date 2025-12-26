@@ -324,7 +324,7 @@ class LayoutWidget:
 
         Args:
             filepath: path for the GDS layout.
-            layer_properties: Optional path for the layer_properties klayout file (lyp).
+            layer_properties: Optional path for the layer_properties rlayout file (lyp).
         """
         self.layout_view.load_layout(filepath)
         self.layout_view.max_hier()

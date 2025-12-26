@@ -466,7 +466,7 @@ class RegionOperator(kdb.TileOutputReceiver):
             ix: x-axis index of tile.
             iy: y_axis index of tile.
             tile: The bounding box of the tile.
-            region: The target object of the :py:class:~`klayout.db.TilingProcessor`
+            region: The target object of the :py:class:~`rlayout.db.TilingProcessor`
             dbu: dbu used by the processor.
             clip: Whether the target was clipped to the tile or not.
         """

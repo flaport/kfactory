@@ -211,7 +211,7 @@ def diff(
 ) -> bool:
     """Returns True if files are different.
 
-    Prints differences and shows them in klayout.
+    Prints differences and shows them in rlayout.
 
     Args:
         ref_file: reference (old) file.
@@ -223,7 +223,7 @@ def diff(
         ignore_cell_name_differences: if True, ignores any cell name differences.
         ignore_label_differences: if True, ignores any label differences when run in
             XOR mode.
-        show: shows diff in klayout.
+        show: shows diff in rlayout.
         stagger: if True, staggers the old/new/xor views. If False, all three are
             overlaid.
     """
@@ -476,7 +476,7 @@ def difftest(
             raise GeometryDifferenceError(
                 "\n"
                 f"{test_name!r} changed from reference {str(ref_file)!r}. "
-                "Run `pytest -s` to step and check differences in klayout GUI."
+                "Run `pytest -s` to step and check differences in rlayout GUI."
             ) from exc
 
 

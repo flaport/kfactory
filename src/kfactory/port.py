@@ -10,8 +10,8 @@ from abc import ABC, abstractmethod
 from enum import IntEnum, IntFlag, auto
 from typing import TYPE_CHECKING, Any, Generic, Literal, Self, overload
 
-import klayout.db as kdb
-from klayout import rdb
+import rlayout.db as kdb
+from rlayout import rdb
 from pydantic import (
     BaseModel,
     model_serializer,

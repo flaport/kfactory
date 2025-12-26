@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self
 
-import klayout.db as kdb
+import rlayout.db as kdb
 from aenum import Enum, constant  # type: ignore[import-untyped,unused-ignore]
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -85,7 +85,7 @@ class LayerEnum(int, Enum):  # type: ignore[misc]
     layout: constant[kdb.Layout]
 
     def __init__(self, layer: int, datatype: int) -> None:
-        """Just here to make sure klayout knows the layer name."""
+        """Just here to make sure rlayout knows the layer name."""
         self.layout.set_info(self, kdb.LayerInfo(self.layer, self.datatype, self.name))
 
     def __new__(

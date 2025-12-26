@@ -12,7 +12,7 @@ from typing import (
     overload,
 )
 
-import klayout.db as kdb
+import rlayout.db as kdb
 
 from .conf import PROPID, config, logger
 from .exceptions import (
@@ -370,8 +370,8 @@ class ProtoTInstance(ProtoInstance[TUnit], Generic[TUnit]):
             other: The other instance or a port. Skip `other_port_name` if it's a port.
             other_port_name: The name of the other port. Ignored if
                 `other` is a port.
-            mirror: Instead of applying klayout.db.Trans.R180 as a connection
-                transformation, use klayout.db.Trans.M90, which effectively means this
+            mirror: Instead of applying rlayout.db.Trans.R180 as a connection
+                transformation, use rlayout.db.Trans.M90, which effectively means this
                 instance will be mirrored and connected.
             allow_width_mismatch: Skip width check between the ports if set.
             allow_layer_mismatch: Skip layer check between the ports if set.
@@ -1001,8 +1001,8 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
             other: The other instance or a port. Skip `other_port_name` if it's a port.
             other_port_name: The name of the other port. Ignored if
                 `other` is a port.
-            mirror: Instead of applying klayout.db.Trans.R180 as a connection
-                transformation, use klayout.db.Trans.M90, which effectively means this
+            mirror: Instead of applying rlayout.db.Trans.R180 as a connection
+                transformation, use rlayout.db.Trans.M90, which effectively means this
                 instance will be mirrored and connected.
             allow_width_mismatch: Skip width check between the ports if set.
             allow_layer_mismatch: Skip layer check between the ports if set.

@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
-import klayout.db as kdb
-from klayout import rdb
+import rlayout.db as kdb
+from rlayout import rdb
 from pydantic import BaseModel, Field
 
 from ..conf import config, logger
@@ -376,7 +376,7 @@ def route_bundle(
             open send the layout of c to klive and open an error lyrdb with the
             collisions. "error" will simply raise an error. None will ignore any error.
         on_placer_error: If a placing of the components fails, use the strategy above to
-            handle the error. show_error will visualize it in klayout with the intended
+            handle the error. show_error will visualize it in rlayout with the intended
             route along the already placed parts of c. Error will just throw an error.
             None will ignore the error.
         collision_check_layers: Layers to check for actual errors if manhattan routes

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic
 
-import klayout.db as kdb
+import rlayout.db as kdb
 
 from .conf import PROPID
 from .instance import (

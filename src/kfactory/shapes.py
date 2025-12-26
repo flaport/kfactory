@@ -15,7 +15,7 @@ __all__ = ["VShapes"]
 
 
 class VShapes:
-    """Emulate `[klayout.db.Shapes][klayout.db.Shapes]`."""
+    """Emulate `[rlayout.db.Shapes][rlayout.db.Shapes]`."""
 
     cell: VKCell
     _shapes: list[ShapeLike]
@@ -30,7 +30,7 @@ class VShapes:
         self._bbox = kdb.DBox()
 
     def insert(self, shape: ShapeLike) -> None:
-        """Emulate `[klayout.db.Shapes][klayout.db.Shapes]'s insert'`."""
+        """Emulate `[rlayout.db.Shapes][rlayout.db.Shapes]'s insert'`."""
         if (
             isinstance(shape, kdb.Shape)
             and shape.cell.layout().dbu != self.cell.kcl.dbu
@@ -48,15 +48,15 @@ class VShapes:
             self._bbox += b
 
     def bbox(self) -> kdb.DBox:
-        """Emulate `[klayout.db.Shapes][klayout.db.Shapes]'s bbox'`."""
+        """Emulate `[rlayout.db.Shapes][rlayout.db.Shapes]'s bbox'`."""
         return self._bbox.dup()
 
     def __iter__(self) -> Iterator[ShapeLike]:
-        """Emulate `[klayout.db.Shapes][klayout.db.Shapes]'s __iter__'`."""
+        """Emulate `[rlayout.db.Shapes][rlayout.db.Shapes]'s __iter__'`."""
         yield from self._shapes
 
     def each(self) -> Iterator[ShapeLike]:
-        """Emulate `[klayout.db.Shapes][klayout.db.Shapes]'s each'`."""
+        """Emulate `[rlayout.db.Shapes][rlayout.db.Shapes]'s each'`."""
         yield from self._shapes
 
     def transform(
@@ -64,7 +64,7 @@ class VShapes:
         trans: kdb.Trans | kdb.DTrans | kdb.ICplxTrans | kdb.DCplxTrans,
         /,
     ) -> VShapes:
-        """Emulate `[klayout.db.Shapes][klayout.db.Shapes]'s transform'`."""
+        """Emulate `[rlayout.db.Shapes][rlayout.db.Shapes]'s transform'`."""
         new_shapes: list[DShapeLike] = []
         if isinstance(trans, kdb.Trans):
             trans = trans.to_dtype(self.cell.kcl.dbu)
@@ -89,5 +89,5 @@ class VShapes:
         return VShapes(cell=self.cell, _shapes=new_shapes)
 
     def size(self) -> int:
-        """Emulate `[klayout.db.Shapes][klayout.db.Shapes]'s size'`."""
+        """Emulate `[rlayout.db.Shapes][rlayout.db.Shapes]'s size'`."""
         return len(self._shapes)

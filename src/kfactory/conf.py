@@ -227,7 +227,7 @@ class Settings(BaseSettings):
 
     v1: Transformations and other KLayout objects are stored as a string. In
         case of ports they are converted back to KLayout objects on read.
-    v2: All objects can be stored in the nativ KLayout format (klayout>=0.28.13)
+    v2: All objects can be stored in the nativ KLayout format (rlayout>=0.28.13)
     """
     # console for printing
     console: rich.console.Console = Field(default_factory=rich.console.Console)

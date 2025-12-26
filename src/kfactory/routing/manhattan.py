@@ -16,7 +16,7 @@ from typing import (
     overload,
 )
 
-import klayout.db as kdb
+import rlayout.db as kdb
 import numpy as np
 
 from ..conf import (

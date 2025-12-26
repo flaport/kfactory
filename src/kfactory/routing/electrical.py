@@ -311,7 +311,7 @@ def route_bundle(
             open send the layout of c to klive and open an error lyrdb with the
             collisions. "error" will simply raise an error. None will ignore any error.
         on_placer_error: If a placing of the components fails, use the strategy above to
-            handle the error. show_error will visualize it in klayout with the intended
+            handle the error. show_error will visualize it in rlayout with the intended
             route along the already placed parts of c. Error will just throw an error.
             None will ignore the error.
         waypoints: Bundle the ports and route them with minimal separation through
@@ -630,7 +630,7 @@ def route_bundle_dual_rails(
             open send the layout of c to klive and open an error lyrdb with the
             collisions. "error" will simply raise an error. None will ignore any error.
         on_placer_error: If a placing of the components fails, use the strategy above to
-            handle the error. show_error will visualize it in klayout with the intended
+            handle the error. show_error will visualize it in rlayout with the intended
             route along the already placed parts of c. Error will just throw an error.
             None will ignore the error.
         waypoints: Bundle the ports and route them with minimal separation through
@@ -1317,7 +1317,7 @@ def route_bundle_rf(
             open send the layout of c to klive and open an error lyrdb with the
             collisions. "error" will simply raise an error. None will ignore any error.
         on_placer_error: If a placing of the components fails, use the strategy above to
-            handle the error. show_error will visualize it in klayout with the intended
+            handle the error. show_error will visualize it in rlayout with the intended
             route along the already placed parts of c. Error will just throw an error.
             None will ignore the error.
         bboxes: List of boxes to consider. Currently only boxes overlapping ports will

@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-import klayout.db as kdb
+import rlayout.db as kdb
 
 if TYPE_CHECKING:
     from .generic import ManhattanRoute

@@ -195,13 +195,13 @@ class Factories(Mapping[str, F], Generic[F]):
 class KCLayout(
     BaseModel, arbitrary_types_allowed=True, extra="allow", validate_assignment=True
 ):
-    """Small extension to the klayout.db.Layout.
+    """Small extension to the rlayout.db.Layout.
 
     It adds tracking for the [KCell][kfactory.kcell.KCell] objects
-    instead of only the `klayout.db.Cell` objects.
+    instead of only the `rlayout.db.Cell` objects.
     Additionally it allows creation and registration through `create_cell`
 
-    All attributes of `klayout.db.Layout` are transparently accessible
+    All attributes of `rlayout.db.Layout` are transparently accessible
 
     Attributes:
         editable: Whether the layout should be opened in editable mode (default: True)
@@ -1665,10 +1665,10 @@ class KCLayout(
                 This will create a cell with the name `name` + `$1` or `2..n`
                 increasing by the number of existing duplicates
             args: additional arguments passed to
-                `klayout.db.Layout.create_cell`
+                `rlayout.db.Layout.create_cell`
 
         Returns:
-            klayout.db.Cell: klayout.db.Cell object created in the Layout
+            rlayout.db.Cell: rlayout.db.Cell object created in the Layout
 
         """
         with self.thread_lock:
@@ -1834,7 +1834,7 @@ class KCLayout(
             filename: Path of the GDS file.
             options: KLayout options to load from the GDS. Can determine how merge
                 conflicts are handled for example. See
-                https://www.klayout.de/doc-qt5/code/class_LoadLayoutOptions.html
+                https://www.rlayout.de/doc-qt5/code/class_LoadLayoutOptions.html
             register_cells: If `True` create KCells for all cells in the GDS.
             test_merge: Check the layouts first whether they are compatible
                 (no differences).
@@ -2040,7 +2040,7 @@ class KCLayout(
             filename: Path of the GDS file.
             options: KLayout options to load from the GDS. Can determine how merge
                 conflicts are handled for example. See
-                https://www.klayout.de/doc-qt5/code/class_LoadLayoutOptions.html
+                https://www.rlayout.de/doc-qt5/code/class_LoadLayoutOptions.html
             set_meta_data: Make sure all the cells have their metadata set
             convert_external_cells: Whether to make KCells not in this KCLayout to
             autoformat_from_file_extension: Set the format of the output file

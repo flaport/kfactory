@@ -7,10 +7,6 @@ rdb = None
 # Add version info (rlayout doesn't expose this yet)
 kdb.__version__ = "0.0.1"
 
-# Alias: rlayout uses LayerProperties for what klayout calls LayerInfo
-kdb.LayerInfo = kdb.LayerProperties
-
-
 # Stub for TileOutputReceiver (not implemented in rlayout - requires GSI callbacks)
 class _TileOutputReceiverStub:
     """Stub for TileOutputReceiver - not functional in rlayout."""

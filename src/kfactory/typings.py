@@ -89,7 +89,7 @@ SerializableShape: TypeAlias = (
     | kdb.DEdgePair
     | kdb.EdgePairs
     | kdb.Edges
-    | kdb.LayerProperties
+    | kdb.LayerInfo
     | kdb.Matrix2d
     | kdb.Matrix3d
     | kdb.Path

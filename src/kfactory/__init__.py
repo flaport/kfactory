@@ -38,4 +38,37 @@ kdb.DTrans.M45 = kdb.DTrans(5)
 kdb.DTrans.M90 = kdb.DTrans(6)
 kdb.DTrans.M135 = kdb.DTrans(7)
 
+# Same for CplxTrans (complex transformations with magnification)
+kdb.CplxTrans.R0 = kdb.CplxTrans(1.0, 0, 0, 0.0, 0.0)
+kdb.CplxTrans.R90 = kdb.CplxTrans(1.0, 90, 0, 0.0, 0.0)
+kdb.CplxTrans.R180 = kdb.CplxTrans(1.0, 180, 0, 0.0, 0.0)
+kdb.CplxTrans.R270 = kdb.CplxTrans(1.0, 270, 0, 0.0, 0.0)
+kdb.CplxTrans.M0 = kdb.CplxTrans(1.0, 0, 1, 0.0, 0.0)
+kdb.CplxTrans.M45 = kdb.CplxTrans(1.0, 90, 1, 0.0, 0.0)
+kdb.CplxTrans.M90 = kdb.CplxTrans(1.0, 180, 1, 0.0, 0.0)
+kdb.CplxTrans.M135 = kdb.CplxTrans(1.0, 270, 1, 0.0, 0.0)
+
+# Same for DCplxTrans
+kdb.DCplxTrans.R0 = kdb.DCplxTrans(1.0, 0, 0, 0.0, 0.0)
+kdb.DCplxTrans.R90 = kdb.DCplxTrans(1.0, 90, 0, 0.0, 0.0)
+kdb.DCplxTrans.R180 = kdb.DCplxTrans(1.0, 180, 0, 0.0, 0.0)
+kdb.DCplxTrans.R270 = kdb.DCplxTrans(1.0, 270, 0, 0.0, 0.0)
+kdb.DCplxTrans.M0 = kdb.DCplxTrans(1.0, 0, 1, 0.0, 0.0)
+kdb.DCplxTrans.M45 = kdb.DCplxTrans(1.0, 90, 1, 0.0, 0.0)
+kdb.DCplxTrans.M90 = kdb.DCplxTrans(1.0, 180, 1, 0.0, 0.0)
+kdb.DCplxTrans.M135 = kdb.DCplxTrans(1.0, 270, 1, 0.0, 0.0)
+
+# Same for ICplxTrans
+kdb.ICplxTrans.R0 = kdb.ICplxTrans(1.0, 0, 0, 0, 0)
+kdb.ICplxTrans.R90 = kdb.ICplxTrans(1.0, 90, 0, 0, 0)
+kdb.ICplxTrans.R180 = kdb.ICplxTrans(1.0, 180, 0, 0, 0)
+kdb.ICplxTrans.R270 = kdb.ICplxTrans(1.0, 270, 0, 0, 0)
+kdb.ICplxTrans.M0 = kdb.ICplxTrans(1.0, 0, 1, 0, 0)
+kdb.ICplxTrans.M45 = kdb.ICplxTrans(1.0, 90, 1, 0, 0)
+kdb.ICplxTrans.M90 = kdb.ICplxTrans(1.0, 180, 1, 0, 0)
+kdb.ICplxTrans.M135 = kdb.ICplxTrans(1.0, 270, 1, 0, 0)
+
+# Import KCell for use in other modules (must be after kdb modifications)
+from .kcell import KCell
+
 __version__ = "0.0.1"

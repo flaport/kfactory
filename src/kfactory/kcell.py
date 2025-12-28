@@ -897,45 +897,6 @@ class ProtoTKCell(ProtoKCell[TUnit, TKCell], Generic[TUnit], ABC):  # noqa: PYI0
         self._base.kdb_cell.locked = False
         self.kcl.delete_cell(ci)
 
-    def _copy_ports_from(self, source: ProtoTKCell[Any]) -> None:
-        """Copy ports from another cell (internal method for cross-layout copying).
-
-        This creates new cross sections in this cell's kcl if needed, and copies
-        port definitions from the source cell.
-
-        Args:
-            source: The source cell to copy ports from.
-        """
-        from .cross_section import CrossSection, SymmetricalCrossSection
-
-        for src_port in source.ports:
-            # Get the cross section spec and recreate in target kcl
-            src_xs = src_port.cross_section
-            if isinstance(src_xs.base, SymmetricalCrossSection):
-                # Recreate the symmetrical cross section in target kcl
-                target_xs = self.kcl.get_symmetrical_cross_section(
-                    src_xs.base.to_dtype(source.kcl)
-                )
-            else:
-                # For regular cross sections, just use the base
-                target_xs = self.kcl.get_icross_section(src_xs.base)
-
-            # Create the port in target cell
-            if src_port.trans is not None:
-                self.create_port(
-                    name=src_port.name,
-                    trans=src_port.trans,
-                    cross_section=target_xs,
-                    port_type=src_port.port_type,
-                )
-            elif src_port.dcplx_trans is not None:
-                self.create_port(
-                    name=src_port.name,
-                    dcplx_trans=src_port.dcplx_trans,
-                    cross_section=target_xs,
-                    port_type=src_port.port_type,
-                )
-
     @abstractmethod
     def add_port(
         self,
@@ -1014,12 +975,6 @@ class ProtoTKCell(ProtoKCell[TUnit, TKCell], Generic[TUnit], ABC):  # noqa: PYI0
         if cell.layout() == self.layout():
             return cell.cell_index()
 
-        # Check if library support is available
-        source_lib = cell.layout().library()
-        if source_lib is None:
-            # No library support (e.g., rlayout) - copy cell tree directly
-            return self._copy_cell_tree(cell, static_name_separator)
-
         lib_ci = self.kcl.layout.add_lib_cell(cell.kcl.library, cell.cell_index())
         if lib_ci not in self.kcl.tkcells:
             kcell = self.kcl[lib_ci]
@@ -1044,46 +999,6 @@ class ProtoTKCell(ProtoKCell[TUnit, TKCell], Generic[TUnit], ABC):  # noqa: PYI0
                         )
             return ci
         return lib_ci
-
-    def _copy_cell_tree(
-        self,
-        cell: ProtoTKCell[Any],
-        static_name_separator: str = "__",
-    ) -> int:
-        """Copy a cell tree from another layout when library support is unavailable.
-
-        This is a fallback for backends like rlayout that don't support library cells.
-        """
-        # Create or find the target cell with a unique name
-        target_name = cell.kcl.name + static_name_separator + cell.name
-
-        # Check if already copied
-        existing = self.kcl.layout.cell(target_name)
-        if existing is not None:
-            ci = existing.cell_index()
-            if ci in self.kcl.tkcells:
-                return ci
-
-        # Create a new cell and copy the tree
-        target_cell = self.kcl.layout.create_cell(target_name)
-        ci = target_cell.cell_index()
-
-        # Copy the cell tree (shapes and instances)
-        target_cell.copy_tree(cell.kdb_cell)
-
-        # Register in tkcells
-        if ci not in self.kcl.tkcells:
-            kcell = self.kcl[ci]
-            kcell.basename = cell.basename
-            kcell.function_name = cell.function_name
-            kcell.base.virtual = cell.virtual
-            # Copy metadata (if method exists)
-            if hasattr(kcell, "copy_meta_info"):
-                kcell.copy_meta_info(cell.kdb_cell)
-            # Copy ports from source cell
-            kcell._copy_ports_from(cell)
-
-        return ci
 
     def icreate_inst(
         self,

@@ -84,7 +84,7 @@ def test_bbox_around_pending_vinst(
 ) -> None:
     child = c.kcl.vkcell("bbox_child")
     child.shapes(xs.layer).insert(kf.kdb.DBox(0, -1, 10, 2))
-    c.create_vinst(child).dcplx_trans = kf.kdb.DCplxTrans(1, 90, False, 20, 30)
+    c.create_vinst(child).dcplx_trans = kf.kdb.DCplxTrans(1, 90, False, kf.kdb.DVector(20, 30))
     xs.add_bbox(c)
     bounds = kf.kdb.DBox(18, 30, 21, 40)
     for layer, offset in xs.to_dtype().bbox_sections.items():
@@ -153,14 +153,14 @@ def test_bbox_empty(
     reference: kf.kdb.LayerInfo | kf.kdb.Box | kf.kdb.DBox | None,
 ) -> None:
     xs.add_bbox(c, ref=reference)
-    assert c.dbbox().empty()
+    assert c.dbbox().is_empty()
 
 
 def test_bbox_locked(xs: Profile, c: kf.KCell | kf.DKCell | kf.VKCell) -> None:
     c.locked = True
     with pytest.raises(LockedError):
         xs.add_bbox(c, ref=kf.kdb.DBox(0, 0, 10, 10))
-    assert c.dbbox().empty()
+    assert c.dbbox().is_empty()
 
 
 def test_bbox_invalid_reference(
@@ -169,7 +169,7 @@ def test_bbox_invalid_reference(
     ref: Any = "WG"
     with pytest.raises(TypeError, match="ref must be"):
         xs.add_bbox(c, ref=ref)
-    assert c.dbbox().empty()
+    assert c.dbbox().is_empty()
 
 
 @pytest.mark.parametrize("cell_type", [kf.KCell, kf.DKCell, kf.VKCell])
@@ -188,11 +188,11 @@ def test_bbox_instance_reference(
     child.shapes(xs.layer).insert(core)
     parent = cell_type(kcl=source)
     instance = parent << child
-    trans = kf.kdb.DCplxTrans(1, angle, mirror, 20, 30)
+    trans = kf.kdb.DCplxTrans(1, angle, mirror, kf.kdb.DVector(20, 30))
     instance.dcplx_trans = trans
     # Unrelated parent geometry must not affect the selected instance's bounds.
     parent.shapes(xs.layer).insert(kf.kdb.DBox(100, 100, 200, 200))
-    bounds = kf.kdb.DPolygon(core).transformed(trans).bbox()
+    bounds = kf.kdb.DPolygon.from_box(core).transformed_complex(trans).bbox()
     if not isinstance(instance, kf.VInstance):
         bounds = bounds.to_itype(source.dbu).to_dtype(source.dbu)
     xs.add_bbox(c, ref=instance, top=0)
@@ -223,7 +223,7 @@ def test_bbox_empty_instance(
     parent = cell_type(kcl=c.kcl)
     instance = parent << c.kcl.kcell()
     xs.add_bbox(c, ref=instance)
-    assert c.dbbox().empty()
+    assert c.dbbox().is_empty()
 
 
 @pytest.mark.parametrize("dbu", [0.001, 0.002])
@@ -241,7 +241,7 @@ def test_bbox_different_layout_rejected(
     with pytest.raises(ValueError, match="same KCLayout"):
         xs.add_bbox(c, ref=0)
     assert target.layout.layer_infos() == layers
-    assert c.dbbox().empty()
+    assert c.dbbox().is_empty()
 
 
 @pytest.mark.parametrize("cell_type", [kf.KCell, kf.DKCell, kf.VKCell])
@@ -257,7 +257,7 @@ def test_bbox_foreign_instance_rejected(
     with pytest.raises(ValueError, match="same KCLayout"):
         xs.add_bbox(c, ref=instance)
     assert c.kcl.layout.layer_infos() == layers
-    assert c.dbbox().empty()
+    assert c.dbbox().is_empty()
 
 
 @pytest.mark.parametrize("cell_type", [kf.KCell, kf.DKCell, kf.VKCell])

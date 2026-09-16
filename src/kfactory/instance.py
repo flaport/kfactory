@@ -105,14 +105,14 @@ class ProtoTInstance[T: (int, float)](ProtoInstance[T]):
         return self._instance
 
     def ibbox(self, layer: int | None = None) -> kdb.Box:
-        if layer is None:
-            return self._instance.bbox()
-        return self._instance.bbox(layer)
+        layer_id = self.kcl.layout.layer_by_index(layer) if layer is not None else None
+        bounds = self._instance.bbox(layer_id)
+        return bounds if bounds is not None else kdb.Box()
 
     def dbbox(self, layer: int | None = None) -> kdb.DBox:
-        if layer is None:
-            return self._instance.dbbox()
-        return self._instance.dbbox(layer)
+        layer_id = self.kcl.layout.layer_by_index(layer) if layer is not None else None
+        bounds = self._instance.dbbox(layer_id)
+        return bounds if bounds is not None else kdb.DBox()
 
     @property
     def cell_name(self) -> str:
@@ -803,12 +803,12 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
 
     def ibbox(self, layer: int | LayerEnum | None = None) -> kdb.Box:
         bounds = self.dbbox(layer)
-        return bounds.to_itype(self.kcl.dbu) if bounds is not None else None
+        return bounds.to_itype(self.kcl.dbu) if bounds is not None else kdb.Box()
 
     def dbbox(self, layer: int | LayerEnum | None = None) -> kdb.DBox:
         cell_bb = self.cell.dbbox(layer)
         if cell_bb is None:
-            return None
+            return kdb.DBox()
         na_ = self.na - 1
         nb_ = self.nb - 1
         if na_ or nb_:

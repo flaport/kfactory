@@ -2157,7 +2157,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                 bounds = vinst.ibbox(layer)
                 if bounds is not None:
                     box = bounds if box is None else box.union(bounds)
-        return box
+        return box if box is not None else kdb.Box()
 
     def dbbox(self, layer: int | None = None) -> kdb.DBox:
         """Bounds in micrometers, including pending virtual instances.
@@ -2181,7 +2181,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                 bounds = vinst.dbbox(layer)
                 if bounds is not None:
                     box = bounds if box is None else box.union(bounds)
-        return box
+        return box if box is not None else kdb.DBox()
 
     def l2n_ports(
         self,
@@ -3360,7 +3360,7 @@ class VKCell(ProtoKCell[float, TVCell], UMGeometricObject, DCreatePort):
 
     def ibbox(self, layer: int | None = None) -> kdb.Box:
         bounds = self.dbbox(layer)
-        return bounds.to_itype(self.kcl.dbu) if bounds is not None else None
+        return bounds.to_itype(self.kcl.dbu) if bounds is not None else kdb.Box()
 
     def transform(
         self,
@@ -3416,7 +3416,7 @@ class VKCell(ProtoKCell[float, TVCell], UMGeometricObject, DCreatePort):
             if bounds is not None:
                 box = bounds if box is None else box.union(bounds)
 
-        return box
+        return box if box is not None else kdb.DBox()
 
     def __getitem__(self, key: int | str | None) -> DPort:
         """Returns port from instance."""

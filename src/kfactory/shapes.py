@@ -40,9 +40,11 @@ class VShapes:
         if isinstance(shape, kdb.Box):
             shape = self.cell.kcl.to_um(shape)
         if isinstance(shape, kdb.DBox):
-            shape = kdb.DPolygon(shape)
+            shape = kdb.DPolygon.from_box(shape)
         self._shapes.append(shape)
         b = shape.bbox()
+        if b is None:
+            return
         if isinstance(b, kdb.Box):
             self._bbox += self.cell.kcl.to_um(b)
         else:

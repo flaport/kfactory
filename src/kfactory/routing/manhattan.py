@@ -1313,7 +1313,7 @@ def route_smart(
                 _r.end.pts = list(_epts)
                 _r.finished = _fin
         router_bboxes: list[kdb.Box] = [
-            kdb.Box(router.start.t.disp.to_p(), router.end.t.disp.to_p()).enlarged(
+            kdb.Box.from_points(router.start.t.disp.to_p(), router.end.t.disp.to_p()).enlarged(
                 router.width // 2
             )
             for router in all_routers
@@ -1334,9 +1334,9 @@ def route_smart(
             dbrbox = bbox.enlarged(separation + router.width // 2)
             overlap_box = dbrbox & bundle_bbox
 
-            if overlap_box.empty():
+            if overlap_box.is_empty():
                 overlap_complete = dbrbox & complete_bbox
-                if overlap_complete.empty():
+                if overlap_complete.is_empty():
                     bundled_bboxes.append(bundle_bbox)
                     bundle_bbox = bbox.dup()
                     bundle_region = kdb.Region(bundle_bbox)
@@ -1347,7 +1347,7 @@ def route_smart(
                 else:
                     for i in range(len(bundled_bboxes)):
                         bundled_bbox = bundled_bboxes[i]
-                        if not (dbrbox & bundled_bbox).empty():
+                        if not (dbrbox & bundled_bbox).is_empty():
                             bb = bundled_bboxes[i]
                             bundled_routers[i].append(router)
                             bundled_bboxes[i] = bb + bbox
@@ -1372,7 +1372,7 @@ def route_smart(
         merge_bboxes: list[tuple[int, int]] = []
         for i in range(len(bundled_bboxes)):
             for j in range(i):
-                if not (bundled_bboxes[j] & bundled_bboxes[i]).empty():
+                if not (bundled_bboxes[j] & bundled_bboxes[i]).is_empty():
                     merge_bboxes.append((i, j))
                     break
         for i, j in reversed(merge_bboxes):
@@ -1392,8 +1392,8 @@ def route_smart(
             r = router_bundle[0]
             end_angle = r.end.t.angle
             re = router_bundle[-1]
-            start_bbox = kdb.Box(r.start.pts[0], re.start.t * _p)
-            end_bbox = kdb.Box(r.end.pts[0], re.end.t * _p)
+            start_bbox = kdb.Box.from_points(r.start.pts[0], re.start.t * _p)
+            end_bbox = kdb.Box.from_points(r.end.pts[0], re.end.t * _p)
             start_bbox += re.start.t * kdb.Point(-1, 0)
             end_bbox += re.end.t * kdb.Point(-1, 0)
 
@@ -1404,10 +1404,10 @@ def route_smart(
             )
 
             for r in router_bundle:
-                start_bbox += kdb.Box(r.start.pts[0], r.start.t.disp.to_p()) + kdb.Box(
+                start_bbox += kdb.Box.from_points(r.start.pts[0], r.start.t.disp.to_p()) + kdb.Box(
                     0, -r.width // 2, 0, r.width // 2
                 ).transformed(r.start.t)
-                end_bbox += kdb.Box(r.end.pts[0], r.end.t.disp.to_p()) + kdb.Box(
+                end_bbox += kdb.Box.from_points(r.end.pts[0], r.end.t.disp.to_p()) + kdb.Box(
                     0, -r.width // 2, 0, r.width // 2
                 ).transformed(r.end.t)
                 if r.end.t.angle != end_angle:
@@ -1756,7 +1756,7 @@ def route_to_bbox(
     separation: int,
     bbox_routing: Literal["minimal", "full"],
 ) -> None:
-    if not bbox.empty():
+    if not bbox.is_empty():
         if bbox_routing == "minimal":
             bb = bbox.dup()
             for router in routers:
@@ -1850,7 +1850,7 @@ def _route_p_side(
             v = r.start.tv
             br = r.bend90_radius
             p1 = r.start.t.disp.to_p()
-            if not box.empty():
+            if not box.is_empty():
                 match r.start.t.angle:
                     case 0 | 2:
                         p = kdb.Point(box.left, p1.y)
@@ -1872,7 +1872,7 @@ def _route_p_side(
 
                 br = 2 * r.bend90_radius
 
-                box += kdb.Box(p1, r.start.t * d_p).enlarged(r.width // 2 + separation)
+                box += kdb.Box.from_points(p1, r.start.t * d_p).enlarged(r.width // 2 + separation)
                 extend += 1
             else:
                 _box = start_bbox.dup()
@@ -2045,7 +2045,7 @@ def route_loosely(
                 router.auto_route()
                 s = 0
             elif tv.y > 0:
-                r_bbox = kdb.Box(
+                r_bbox = kdb.Box.from_points(
                     router.start.t.disp.to_p(), router.end.t.disp.to_p()
                 ).enlarged(router.width)
                 if s == -1:
@@ -2057,7 +2057,7 @@ def route_loosely(
                     if group:
                         reverse_groups.append(group)
                     group = []
-                if not (r_bbox & group_bbox.enlarged(separation)).empty():
+                if not (r_bbox & group_bbox.enlarged(separation)).is_empty():
                     group_bbox += r_bbox
                     group.append(router)
                 else:
@@ -2067,7 +2067,7 @@ def route_loosely(
                     group_bbox = r_bbox
                 s = 1
             else:
-                r_bbox = kdb.Box(
+                r_bbox = kdb.Box.from_points(
                     router.start.t.disp.to_p(), router.end.t.disp.to_p()
                 ).enlarged(router.width)
                 if s in (1, 0):
@@ -2075,7 +2075,7 @@ def route_loosely(
                         forward_groups.append(group)
                     group = [router]
                     group_bbox = r_bbox
-                if not (r_bbox & group_bbox.enlarged(separation)).empty():
+                if not (r_bbox & group_bbox.enlarged(separation)).is_empty():
                     group_bbox += r_bbox
                     group.append(router)
                 else:

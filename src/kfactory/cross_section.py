@@ -744,7 +744,7 @@ def _add_bbox(
     """Insert integer bbox layers with optional per-edge padding overrides."""
     if c.locked:
         raise LockedError(c)
-    if bbox.empty():
+    if bbox.is_empty():
         return
     for layer, offset in sections.items():
         c.shapes(layer).insert(
@@ -770,7 +770,7 @@ def _add_bbox_virtual(
     """Insert virtual bbox layers with optional per-edge padding overrides."""
     if c.locked:
         raise LockedError(c)
-    if bbox.empty():
+    if bbox.is_empty():
         return
     for layer, offset in sections.items():
         c.shapes(layer).insert(

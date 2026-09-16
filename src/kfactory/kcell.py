@@ -888,7 +888,14 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         return self._base.kdb_cell.is_library_cell()
 
     def shapes(self, layer: int | kdb.LayerInfo) -> kdb.Shapes:
-        return self._base.kdb_cell.shapes(layer)
+        layer_id = (
+            self.kcl.layout.layer(layer)
+            if isinstance(layer, kdb.LayerInfo)
+            else self.kcl.layout.layer_by_index(layer)
+        )
+        if layer_id is None:
+            raise ValueError(f"Unknown layer index {layer}")
+        return self._base.kdb_cell.shapes(layer_id)
 
     @property
     @abstractmethod

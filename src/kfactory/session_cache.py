@@ -368,8 +368,10 @@ def _reduce_klayout_shapes(
     return (obj.__class__.from_s, (obj.to_s(),))
 
 
-def _reduce_layer_info(obj: kdb.LayerInfo) -> tuple[Callable[..., Any], tuple[str]]:
-    return (kdb.LayerInfo.from_string, (obj.to_s(),))
+def _reduce_layer_info(
+    obj: kdb.LayerInfo,
+) -> tuple[Callable[..., Any], tuple[int, int, str]]:
+    return (kdb.LayerInfo, (obj.layer, obj.datatype, obj.name))
 
 
 def _get_cell(kcl_name: str, virtual: bool, factory_name: str, settings: Any) -> Any:

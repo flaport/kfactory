@@ -54,7 +54,8 @@ class LayerInfos(BaseModel):
                     f"Field {field_name} is of type {type(f)}"
                 )
             if not f.name:
-                f.name = field_name
+                f = kdb.LayerInfo(f.layer, f.datatype, field_name)
+                setattr(self, field_name, f)
             if f.layer == -1 or f.datatype == -1:
                 raise InvalidLayerError(
                     "Layers must specify layer number and datatype."
@@ -84,7 +85,10 @@ class LayerEnum(int, Enum):  # ty:ignore[unsupported-base]
 
     def __init__(self, layer: int, datatype: int) -> None:
         """Just here to make sure klayout knows the layer name."""
-        self.layout.set_info(self, kdb.LayerInfo(self.layer, self.datatype, self.name))
+        layer_id = self.layout.layer(kdb.LayerInfo(self.layer, self.datatype))
+        self.layout.set_layer_info(
+            layer_id, kdb.LayerInfo(self.layer, self.datatype, self.name)
+        )
 
     def __new__(
         cls,
@@ -99,7 +103,7 @@ class LayerEnum(int, Enum):  # ty:ignore[unsupported-base]
             layer: Layer number of the layer.
             datatype: Datatype of the layer.
         """
-        value = cls.layout.layer(layer, datatype)
+        value = cls.layout.layer(kdb.LayerInfo(layer, datatype)).index
         obj: int = int.__new__(cls, value)
         obj._value_ = value
         obj.layer = layer

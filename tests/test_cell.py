@@ -388,7 +388,7 @@ def test_layout_cache() -> None:
     @kcl_write.cell(basename="straight")
     def write_straight() -> kf.KCell:
         c = kcl_write.kcell()
-        c.shapes(kcl_write.layer(1, 0)).insert(kf.kdb.Box(10_000, 1000))
+        c.shapes(kcl_write.layer(1, 0)).insert(kf.kdb.Box.from_size(10_000, 1000))
         return c
 
     s_write = write_straight()
@@ -399,7 +399,7 @@ def test_layout_cache() -> None:
     @kcl_read.cell(basename="straight", layout_cache=True)
     def read_straight() -> kf.KCell:
         c = kcl_read.kcell()
-        c.shapes(kcl_read.layer(1, 0)).insert(kf.kdb.Box(5000, 1000))
+        c.shapes(kcl_read.layer(1, 0)).insert(kf.kdb.Box.from_size(5000, 1000))
         return c
 
     s_read = read_straight()
@@ -580,7 +580,7 @@ def test_lock(
         warnings.simplefilter("ignore")
         # shape insert
         with pytest.raises(RuntimeError):
-            straight.shapes(kf.kdb.LayerInfo(1, 0)).insert(kf.kdb.Box(500))
+            straight.shapes(kf.kdb.LayerInfo(1, 0)).insert(kf.kdb.Box.from_size(500, 500))
         # instance insert
         with pytest.raises(RuntimeError):
             straight << bend90

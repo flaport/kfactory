@@ -1929,6 +1929,10 @@ class KCLayout(
                 with contextlib.suppress(AttributeError):
                     del self.layers
                 _ = self.layers  # make sure the layers are computed
+        elif isinstance(getattr(type(self), name, None), cached_property):
+            # Cached KCLayout attributes take precedence over backend methods
+            # such as Layout.layers; Pydantic handles their instance storage.
+            super().__setattr__(name, value)
         elif hasattr(self.layout, name):
             self.layout.__setattr__(name, value)
 

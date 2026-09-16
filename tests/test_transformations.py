@@ -31,7 +31,7 @@ def test_rotation(
 
     if center:
         c.shapes(c.kcl.find_layer(layers.WGCLAD)).insert(
-            kf.kdb.Box(10).transformed(kf.kdb.Trans(center.to_v()))
+            kf.kdb.Box.from_size(10, 10).transformed(kf.kdb.Trans(displacement=center.to_vector()))
         )
 
     c.add_ports(wg1.ports)
@@ -66,7 +66,7 @@ def test_drotation(
 
     if center:
         c.shapes(c.kcl.find_layer(layers.WGCLAD)).insert(
-            kf.kdb.DBox(0.01).transformed(kf.kdb.DCplxTrans(center.to_v()))
+            kf.kdb.DBox.from_size(0.01, 0.01).transformed_complex(kf.kdb.DCplxTrans(1, 0, False, center.to_vector()))
         )
 
     c.add_ports(wg1.ports)
@@ -76,14 +76,14 @@ def test_drotation(
 @pytest.mark.parametrize(
     ("from_name", "use_mirror", "apply_mirror", "expected_transformation"),
     [
-        (True, True, True, kf.kdb.Trans(1, False, 11_000, -10_000)),
-        (True, True, False, kf.kdb.Trans(1, False, 11_000, -10_000)),
-        (True, False, True, kf.kdb.Trans(3, True, 11_000, 10_000)),
-        (True, False, False, kf.kdb.Trans(1, False, 11_000, -10_000)),
-        (False, True, True, kf.kdb.Trans(1, False, 11_000, -10_000)),
-        (False, True, False, kf.kdb.Trans(1, False, 11_000, -10_000)),
-        (False, False, True, kf.kdb.Trans(3, True, 11_000, 10_000)),
-        (False, False, False, kf.kdb.Trans(1, False, 11_000, -10_000)),
+        (True, True, True, kf.kdb.Trans(kf.kdb.Rotation.R90, False, kf.kdb.Vector(11_000, -10_000))),
+        (True, True, False, kf.kdb.Trans(kf.kdb.Rotation.R90, False, kf.kdb.Vector(11_000, -10_000))),
+        (True, False, True, kf.kdb.Trans(kf.kdb.Rotation.R270, True, kf.kdb.Vector(11_000, 10_000))),
+        (True, False, False, kf.kdb.Trans(kf.kdb.Rotation.R90, False, kf.kdb.Vector(11_000, -10_000))),
+        (False, True, True, kf.kdb.Trans(kf.kdb.Rotation.R90, False, kf.kdb.Vector(11_000, -10_000))),
+        (False, True, False, kf.kdb.Trans(kf.kdb.Rotation.R90, False, kf.kdb.Vector(11_000, -10_000))),
+        (False, False, True, kf.kdb.Trans(kf.kdb.Rotation.R270, True, kf.kdb.Vector(11_000, 10_000))),
+        (False, False, False, kf.kdb.Trans(kf.kdb.Rotation.R90, False, kf.kdb.Vector(11_000, -10_000))),
     ],
 )
 def test_connection_flags(

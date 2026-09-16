@@ -24,10 +24,10 @@ def get_ports() -> _PortsType:
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        trans=kf.kdb.Trans(0, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(0, 0)),
     )
     complex_base = base.__copy__()
-    complex_base.dcplx_trans = kf.kdb.DCplxTrans(1, rot=20, x=0, y=0)
+    complex_base.dcplx_trans = kf.kdb.DCplxTrans(1, 20, False, kf.kdb.DVector(0, 0))
     complex_base.trans = None
     return (
         kf.port.DPort(base=base.__copy__()),
@@ -80,8 +80,8 @@ def test_invalid_base_port_trans(kcl: kf.KCLayout, layers: Layers) -> None:
                 CrossSectionSpecDict(layer=layers.WG, width=2000)
             ),
             port_type="optical",
-            trans=kf.kdb.Trans(1, 0),
-            dcplx_trans=kf.kdb.DCplxTrans(1, 0),
+            trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
+            dcplx_trans=kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(1, 0)),
         )
 
 
@@ -96,8 +96,8 @@ def test_base_port_ser_model(
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        trans=None if complex_transform else kf.kdb.Trans(1, 0),
-        dcplx_trans=kf.kdb.DCplxTrans(1, 0) if complex_transform else None,
+        trans=None if complex_transform else kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
+        dcplx_trans=kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(1, 0)) if complex_transform else None,
     )
     serialized = port.ser_model()
     assert serialized == {
@@ -125,11 +125,11 @@ def test_base_port_get_trans(kcl: kf.KCLayout, layers: Layers) -> None:
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        trans=kf.kdb.Trans(1, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
     )
 
-    assert port.get_trans() == kf.kdb.Trans(1, 0)
-    assert port.get_dcplx_trans() == kf.kdb.DCplxTrans(0.001, 0)
+    assert port.get_trans() == kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0))
+    assert port.get_dcplx_trans() == kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(0.001, 0))
 
     port = kf.port.BasePort(
         name="o1",
@@ -138,11 +138,11 @@ def test_base_port_get_trans(kcl: kf.KCLayout, layers: Layers) -> None:
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        dcplx_trans=kf.kdb.DCplxTrans(1, 0),
+        dcplx_trans=kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(1, 0)),
     )
 
-    assert port.get_dcplx_trans() == kf.kdb.ICplxTrans(1, 0)
-    assert port.get_trans() == kf.kdb.ICplxTrans(1000, 0).s_trans()
+    assert port.get_dcplx_trans() == kf.kdb.ICplxTrans(1, 0, False, kf.kdb.DVector(1, 0))
+    assert port.get_trans() == kf.kdb.ICplxTrans(1, 0, False, kf.kdb.DVector(1000, 0)).to_orthogonal()
 
 
 def test_base_port_eq(kcl: kf.KCLayout, layers: Layers) -> None:
@@ -153,11 +153,11 @@ def test_base_port_eq(kcl: kf.KCLayout, layers: Layers) -> None:
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        trans=kf.kdb.Trans(1, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
     )
     port2 = port1.model_copy()
     assert port1 == port2
-    port2.trans = kf.kdb.Trans(2, 0)
+    port2.trans = kf.kdb.Trans(displacement=kf.kdb.Vector(2, 0))
     assert port1 != port2
     assert port1 != 2
 
@@ -166,7 +166,7 @@ def test_base_port_eq(kcl: kf.KCLayout, layers: Layers) -> None:
 def test_port_eq(port: kf.port.ProtoPort[Any]) -> None:
     port2 = port.copy()
     assert port == port2
-    port2.trans = kf.kdb.Trans(2, 0)
+    port2.trans = kf.kdb.Trans(displacement=kf.kdb.Vector(2, 0))
     assert port != port2
     assert port != 2
 
@@ -179,7 +179,7 @@ def test_port_kcl(kcl: kf.KCLayout, pdk: kf.KCLayout, layers: Layers) -> None:
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        trans=kf.kdb.Trans(1, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
     )
     assert port.kcl is kcl
     port.kcl = pdk
@@ -194,7 +194,7 @@ def test_port_cross_section(kcl: kf.KCLayout, layers: Layers) -> None:
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        trans=kf.kdb.Trans(1, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
     )
     port = kf.port.Port(base=base_port)
     assert port.cross_section.base is kcl.get_symmetrical_cross_section(
@@ -305,18 +305,18 @@ def test_port_copy(kcl: kf.KCLayout, layers: Layers) -> None:
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        trans=kf.kdb.Trans(1, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
     )
     port2 = port.copy()
-    port.trans = kf.kdb.Trans(2, 0)
+    port.trans = kf.kdb.Trans(displacement=kf.kdb.Vector(2, 0))
     assert port2.name == "o1"
     assert port2.kcl is kcl
     assert port2.cross_section.base is kcl.get_symmetrical_cross_section(
         CrossSectionSpecDict(layer=layers.WG, width=2000)
     )
     assert port2.port_type == "optical"
-    assert port2.trans == kf.kdb.Trans(1, 0)
-    assert port.trans == kf.kdb.Trans(2, 0)
+    assert port2.trans == kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0))
+    assert port.trans == kf.kdb.Trans(displacement=kf.kdb.Vector(2, 0))
 
 
 @pytest.mark.parametrize("port", get_ports())
@@ -411,37 +411,37 @@ def test_port_init(kcl: kf.KCLayout) -> None:
         name="o1",
         width=10,
         layer=1,
-        trans=kf.kdb.Trans(1, 0).to_s(),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)).to_s(),
         kcl=kcl,
         port_type="optical",
     )
-    assert port.trans == kf.kdb.Trans(1, 0)
+    assert port.trans == kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0))
 
     port = kf.Port(
         name="o1",
         width=10,
         layer=1,
-        dcplx_trans=kf.kdb.DCplxTrans(1, 0).to_s(),
+        dcplx_trans=kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(1, 0)).to_s(),
         kcl=kcl,
         port_type="optical",
     )
-    assert port.dcplx_trans == kf.kdb.DCplxTrans(1, 0)
+    assert port.dcplx_trans == kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(1, 0))
 
 
 def test_dport_init() -> None:
-    dport = kf.DPort(name="o1", width=10, layer=1, trans=kf.kdb.Trans(1, 0).to_s())
-    assert dport.trans == kf.kdb.Trans(1, 0)
+    dport = kf.DPort(name="o1", width=10, layer=1, trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)).to_s())
+    assert dport.trans == kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0))
 
     dport = kf.DPort(
-        name="o1", width=10, layer=1, dcplx_trans=kf.kdb.DCplxTrans(1, 0).to_s()
+        name="o1", width=10, layer=1, dcplx_trans=kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(1, 0)).to_s()
     )
-    assert dport.dcplx_trans == kf.kdb.DCplxTrans(1, 0)
+    assert dport.dcplx_trans == kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(1, 0))
 
 
 def test_dport_copy_polar() -> None:
     port = kf.DPort(name="o1", width=10, layer=1, center=(0, 0), orientation=0)
     port2 = port.copy_polar(d=1, d_orth=1, orientation=45, mirror=True)
-    assert port2.dcplx_trans == kf.kdb.DCplxTrans(x=1, y=1, rot=45, mirrx=True)
+    assert port2.dcplx_trans == kf.kdb.DCplxTrans(1, 45, True, kf.kdb.DVector(1, 1))
 
 
 def test_autorename(
@@ -565,6 +565,6 @@ def test_create(
             CrossSectionSpecDict(layer=layers.WG, width=2000)
         ),
         port_type="optical",
-        trans=kf.kdb.Trans(1, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
     )
     oas_regression(cell)

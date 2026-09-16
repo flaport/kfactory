@@ -1600,7 +1600,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             for kcell in self.kcl.kcells.values():
                 kcell.set_meta_data()
             layout_b = kdb.Layout()
-            layout_b.read(fn, options)
+            layout_b.read_into_with_options(fn, options)
             layout_a = self.kcl.layout.dup()
             layout_a.delete_cell(layout_a.cell(self.name).cell_index())
             diff = MergeDiff(

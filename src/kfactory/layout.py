@@ -2303,7 +2303,7 @@ class KCLayout(
             if register_cells is None:
                 register_cells = meta_format == config.meta_format
             layout_b = kdb.Layout()
-            layout_b.read(str(filename), options)
+            layout_b.read_into_with_options(str(filename), options)
             if (
                 self.cells() > 0
                 and test_merge

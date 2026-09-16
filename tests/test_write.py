@@ -32,7 +32,7 @@ def test_write_and_write_bytes(
         child_b.kdb_cell.rename("child_a")
 
     def dedup_names() -> list[str]:
-        return sorted(c.name for c in kcl.layout.cells())
+        return sorted(c.name for c in kcl.layout.each_cell())
 
     path = tmp_path / "out.gds"
 

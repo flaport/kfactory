@@ -299,10 +299,15 @@ def load_kcl(kcl_path: Path) -> None:
                 kc_ = kcl.kcell(name=kc.name)
                 for inst in kc.insts:
                     if inst.cell.is_library_cell():
-                        lib_c = inst.cell.library().layout().cell(inst.cell.name)
+                        library = inst.cell.library()
+                        if hasattr(library, "layout_snapshot"):
+                            library_layout = library.layout_snapshot()
+                        else:
+                            library_layout = library.layout()
+                        lib_c = library_layout.cell(inst.cell.name)
                         if lib_c is not None:
                             inst_ = kc_.icreate_inst(
-                                kcls[inst.cell.library().name()][lib_c.cell_index()],
+                                kcls[library.name()][lib_c.cell_index()],
                                 na=inst.na,
                                 nb=inst.nb,
                                 a=inst.a,

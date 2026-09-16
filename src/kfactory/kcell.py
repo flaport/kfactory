@@ -3590,7 +3590,7 @@ class VKCell(ProtoKCell[float, TVCell], UMGeometricObject, DCreatePort):
         if layer is None:
             return self._base.shapes
         if isinstance(layer, kdb.LayerInfo):
-            layer = self.kcl.layout.layer(layer)
+            layer = self.kcl.layer(layer)
         if layer not in self._base.shapes:
             self._base.shapes[layer] = VShapes(cell=self)
         return self._base.shapes[layer]

@@ -171,15 +171,14 @@ def _cell_detail(
                     loc += f":{lineno}"
                 parts.append(loc)
         else:
-            c = layout.cell(ci)
+            c = layout.cell_by_index(ci)
             cell_name = c.name if c is not None and not c.is_destroyed() else None
             parts.append(f"no factory, name={cell_name!r}")
 
-    c = layout.cell(ci)
+    c = layout.cell_by_index(ci)
     if c is not None and not c.is_destroyed():
         parent_names = []
-        for parent_ci in c.caller_cells():
-            pc = layout.cell(parent_ci)
+        for pc in c.caller_cells():
             if pc is not None and not pc.is_destroyed():
                 parent_names.append(pc.name)
         if parent_names:
@@ -209,7 +208,7 @@ def _check_duplicate_cell_names(
 
     name_to_indices: dict[str, list[int]] = defaultdict(list)
     for ci in cell_indices:
-        c = layout.cell(ci)
+        c = layout.cell_by_index(ci)
         if c is not None and not c.is_destroyed():
             name_to_indices[c.name].append(ci)
 
@@ -236,7 +235,7 @@ def _check_duplicate_cell_names(
 
     for name, indices in duplicates.items():
         for ci in indices[1:]:
-            c = layout.cell(ci)
+            c = layout.cell_by_index(ci)
             if c is None or c.is_destroyed():
                 continue
             unique = layout.unique_cell_name(name)
@@ -879,9 +878,13 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         """Gets the cell index."""
         return self._base.kdb_cell.index
 
+    def caller_cells(self) -> list[int]:
+        """Cell indices for every transitive ancestor of this cell."""
+        return [cell.index for cell in self._base.kdb_cell.caller_cells()]
+
     def called_cells(self) -> list[int]:
         """Cell indices for every cell transitively instantiated inside this cell."""
-        return self._base.kdb_cell.called_cells()
+        return [cell.index for cell in self._base.kdb_cell.called_cells()]
 
     def is_library_cell(self) -> bool:
         """True if this cell is imported from a klayout library."""
@@ -1333,7 +1336,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         self.instance_infos.clear()
 
         if merge:
-            for layer in self.kcl.layout.layer_indexes():
+            for layer in self.kcl.layer_indexes():
                 reg = kdb.Region(self.shapes(layer))
                 reg = reg.merge()
                 texts = kdb.Texts(self.shapes(layer))
@@ -1366,7 +1369,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                     kc.convert_to_static(recursive=recursive)
 
         self._base.kdb_cell = kdb_cell
-        for ci in old_kdb_cell.caller_cells():
+        for ci in (cell.index for cell in old_kdb_cell.caller_cells()):
             c = self.kcl.layout_cell(ci)
             assert c is not None
             it = kdb.RecursiveInstanceIterator(self.kcl.layout, c)
@@ -2327,7 +2330,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             trans = port.trans.dup()
             trans.angle %= 2
             trans.mirror = False
-            layer_info = self.kcl.layout.get_info(port.layer)
+            layer_info = self.kcl.get_info(port.layer)
             layer = f"{layer_info.layer}_{layer_info.datatype}"
 
             if port.name in portnames:
@@ -2374,7 +2377,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                 trans.mirror = False
                 v = trans.disp
                 h = f"{v.x}_{v.y}"
-                layer_info = self.kcl.layout.get_info(port.layer)
+                layer_info = self.kcl.get_info(port.layer)
                 layer = f"{layer_info.layer}_{layer_info.datatype}"
                 if h not in inst_ports:
                     inst_ports[h] = {}
@@ -2581,7 +2584,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             self._base.vinsts.clear()
 
             if recursive:
-                called_cell_indexes = set(self._base.kdb_cell.called_cells())
+                called_cell_indexes = set(self.called_cells())
                 for c in sorted(
                     (
                         self.kcl[ci]

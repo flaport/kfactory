@@ -478,7 +478,7 @@ class ICreatePort(ABC):
                     raise ValueError(
                         "layer or layer_info must be defined to create a port."
                     )
-                layer_info = self.kcl.layout.get_info(layer)
+                layer_info = self.kcl.get_info(layer)
             assert layer_info is not None
             try:
                 xs = self.kcl.get_icross_section(
@@ -706,7 +706,7 @@ class DCreatePort(ABC):
                     raise ValueError(
                         "layer or layer_info must be defined to create a port."
                     )
-                layer_info = self.kcl.layout.get_info(layer)
+                layer_info = self.kcl.get_info(layer)
             assert layer_info is not None
             try:
                 xs = self.kcl.get_dcross_section(

@@ -896,9 +896,11 @@ class KCLayout(
         if other is None:
             return None
         if isinstance(other, (int, float)):
-            return kdb.CplxTrans(
-                self.layout.dbu, 0, False, kdb.DVector(0, 0)
-            ).inverted().transform_distance(other)
+            return (
+                kdb.CplxTrans(self.layout.dbu, 0, False, kdb.DVector(0, 0))
+                .inverted()
+                .transform_distance(other)
+            )
         return other.to_itype(self.layout.dbu)
 
     @overload
@@ -1972,10 +1974,20 @@ class KCLayout(
         kcl.rename_function = self.rename_function
         return kcl
 
-    def layer(self, layer: kdb.LayerInfo | int, datatype: int = 0, name: str = "") -> int:
+    def layer(
+        self, layer: kdb.LayerInfo | int, datatype: int = 0, name: str = ""
+    ) -> int:
         """Resolve a descriptor to this KCLayout's native layer index."""
-        info = layer if isinstance(layer, kdb.LayerInfo) else kdb.LayerInfo(layer, datatype, name)
+        info = (
+            layer
+            if isinstance(layer, kdb.LayerInfo)
+            else kdb.LayerInfo(layer, datatype, name)
+        )
         return self.layout.layer(info).index
+
+    def layer_indexes(self) -> list[int]:
+        """Current native layer indices, including unnamed layers."""
+        return [layer.index for layer in self.layout.layers()]
 
     def get_info(self, index: int) -> kdb.LayerInfo:
         """Read metadata through an owner-checked native layer handle."""
@@ -1986,7 +1998,11 @@ class KCLayout(
 
     def layout_cell(self, name: str | int) -> kdb.Cell | None:
         """Get a cell by name or index from the Layout object."""
-        return self.layout.find_cell(name) if isinstance(name, str) else self.layout.cell_by_index(name)
+        return (
+            self.layout.find_cell(name)
+            if isinstance(name, str)
+            else self.layout.cell_by_index(name)
+        )
 
     @overload
     def cells(self, name: str) -> list[kdb.Cell]: ...

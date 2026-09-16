@@ -962,7 +962,7 @@ class Port(ProtoPort[int]):
             if layer_info is None:
                 if layer is None:
                     raise ValueError("layer or layer_info for a port must be defined")
-                layer_info = kcl_.layout.get_info(layer)
+                layer_info = kcl_.get_info(layer)
             if width is None:
                 raise ValueError(
                     "any width and layer, or a cross_section must be given if the"
@@ -1372,7 +1372,7 @@ class DPort(ProtoPort[float]):
             if layer_info is None:
                 if layer is None:
                     raise ValueError("layer or layer_info for a port must be defined")
-                layer_info = kcl_.layout.get_info(layer)
+                layer_info = kcl_.get_info(layer)
             if width is None:
                 raise ValueError(
                     "If a cross_section is not given a width must be defined."

@@ -18,6 +18,7 @@ __all__ = [
     "fix_spacing_minkowski_tiled",
     "fix_spacing_tiled",
     "simplify",
+    "violations",
     "xor",
 ]
 
@@ -27,6 +28,10 @@ def __getattr__(name: str):
     # Load their unchanged implementations only when explicitly requested.
     from importlib import import_module
 
+    if name == "violations":
+        value = import_module(".violations", __name__)
+        globals()[name] = value
+        return value
     if name == "fill_tiled":
         module = ".fill"
     elif name in {"fix_spacing_minkowski_tiled", "fix_spacing_tiled"}:

@@ -598,7 +598,7 @@ class Instance(ProtoTInstance[int], DBUGeometricObject):
     def __init__(self, kcl: KCLayout, instance: kdb.Instance) -> None:
         """Create an instance from a KLayout Instance."""
         self.kcl = kcl
-        self._instance = instance
+        self._instance = instance.instance if isinstance(instance, ProtoTInstance) else instance
 
     @functools.cached_property
     def ports(self) -> InstancePorts:
@@ -636,7 +636,7 @@ class Instance(ProtoTInstance[int], DBUGeometricObject):
     @property
     def parent_cell(self) -> KCell:
         """Gets the cell this instance is contained in."""
-        return self.kcl[self._instance.parent_cell.cell_index()]
+        return self.kcl[self._instance.parent_cell.cell_index]
 
     @parent_cell.setter
     def parent_cell(self, cell: KCell | DKCell | kdb.Cell) -> None:
@@ -683,7 +683,7 @@ class DInstance(ProtoTInstance[float], UMGeometricObject):
     def __init__(self, kcl: KCLayout, instance: kdb.Instance) -> None:
         """Create an instance from a KLayout Instance."""
         self.kcl = kcl
-        self._instance = instance
+        self._instance = instance.instance if isinstance(instance, ProtoTInstance) else instance
 
     @functools.cached_property
     def ports(self) -> DInstancePorts:
@@ -711,7 +711,7 @@ class DInstance(ProtoTInstance[float], UMGeometricObject):
     @property
     def parent_cell(self) -> DKCell:
         """Gets the cell this instance is contained in."""
-        return self.kcl.dkcells[self._instance.parent_cell.cell_index()]
+        return self.kcl.dkcells[self._instance.parent_cell.cell_index]
 
     @parent_cell.setter
     def parent_cell(self, cell: KCell | DKCell | kdb.Cell) -> None:

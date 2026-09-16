@@ -1212,14 +1212,22 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         else:
             ci = self._get_ci(cell, libcell_as_static, static_name_separator)
 
-        if a is None:
-            inst = self._base.kdb_cell.insert(kdb.CellInstArray(ci, trans))
-        else:
-            if b is None:
-                b = kdb.Vector()
-            inst = self._base.kdb_cell.insert(
-                kdb.CellInstArray(ci, trans, a, b, na, nb)
-            )
+        child = self.kcl.layout.cell_by_index(ci)
+        if child is None:
+            raise ValueError(f"Unknown instance child index {ci}")
+        if isinstance(trans, kdb.Vector):
+            trans = kdb.Trans(displacement=trans)
+        constructor = (
+            kdb.CellInstArray.from_complex
+            if isinstance(trans, kdb.ICplxTrans)
+            else kdb.CellInstArray
+        )
+        array = (
+            constructor(child, trans)
+            if a is None
+            else constructor(child, trans, a, b or kdb.Vector(0, 0), na, nb)
+        )
+        inst = self._base.kdb_cell.insert_live_array(array)
         return Instance(kcl=self.kcl, instance=inst)
 
     def dcreate_inst(
@@ -1265,14 +1273,19 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         else:
             ci = self._get_ci(cell, libcell_as_static, static_name_separator)
 
-        if a is None:
-            inst = self._base.kdb_cell.insert(kdb.DCellInstArray(ci, trans))
-        else:
-            if b is None:
-                b = kdb.DVector()
-            inst = self._base.kdb_cell.insert(
-                kdb.DCellInstArray(ci, trans, a, b, na, nb)
-            )
+        child = self.kcl.layout.cell_by_index(ci)
+        if child is None:
+            raise ValueError(f"Unknown instance child index {ci}")
+        if isinstance(trans, kdb.DVector):
+            trans = kdb.DCplxTrans(1, 0, False, trans)
+        elif isinstance(trans, kdb.DTrans):
+            trans = trans.to_complex()
+        array = (
+            kdb.DCellInstArray(child, trans)
+            if a is None
+            else kdb.DCellInstArray(child, trans, a, b or kdb.DVector(0, 0), na, nb)
+        )
+        inst = self._base.kdb_cell.insert_live_array(array)
         return DInstance(kcl=self.kcl, instance=inst)
 
     def _kdb_copy(self) -> kdb.Cell:
@@ -1660,7 +1673,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
     def each_inst(self) -> Iterator[Instance]:
         """Iterates over all child instances (which may actually be instance arrays)."""
         yield from (
-            Instance(self.kcl, inst) for inst in self._base.kdb_cell.instances()
+            Instance(self.kcl, inst) for inst in self._base.kdb_cell.live_instances()
         )
 
     def each_overlapping_inst(self, b: kdb.Box | kdb.DBox) -> Iterator[Instance]:

@@ -41,7 +41,9 @@ def pack_kcells(
         inst, _bb = inst_bb
         inst.transform(
             kdb.Trans(
-                bb[0] + spacing // 2 - _bb.left, bb[1] + spacing // 2 - _bb.bottom
+                displacement=kdb.Vector(
+                    bb[0] + spacing // 2 - _bb.left, bb[1] + spacing // 2 - _bb.bottom
+                )
             )
         )
 
@@ -76,7 +78,9 @@ def pack_instances(
         inst, _bb = inst_bb
         inst.transform(
             kdb.Trans(
-                bb[0] + spacing // 2 - _bb.left, bb[1] + spacing // 2 - _bb.bottom
+                displacement=kdb.Vector(
+                    bb[0] + spacing // 2 - _bb.left, bb[1] + spacing // 2 - _bb.bottom
+                )
             )
         )
 

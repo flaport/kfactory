@@ -41,7 +41,11 @@ def test_route_length_match(
     start_ports = [
         kf.Port(
             name=f"in_{x1}",
-            trans=kf.kdb.Trans(1, False, x1 * 200_000, -x1 * 150_000),
+            trans=kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(1),
+                False,
+                kf.kdb.Vector(x1 * 200_000, -x1 * 150_000),
+            ),
             width=500,
             layer_info=layers.WG,
         )
@@ -51,7 +55,9 @@ def test_route_length_match(
     end_ports = [
         kf.Port(
             name=f"out_{x1}",
-            trans=kf.kdb.Trans(3, False, x1, 500_000),
+            trans=kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(3), False, kf.kdb.Vector(x1, 500_000)
+            ),
             width=500,
             layer_info=layers.WG,
         )
@@ -103,17 +109,22 @@ def test_route_bundle(
     p_start = [
         optical_port.copy(
             kf.kdb.Trans(
-                1,
+                kf.kdb.Rotation.from_quarter_turns(1),
                 False,
-                i * 200_000 - 50_000,
-                (4 - i) * 6_000 if i < 5 else (i - 5) * 6_000,
+                kf.kdb.Vector(
+                    i * 200_000 - 50_000, (4 - i) * 6_000 if i < 5 else (i - 5) * 6_000
+                ),
             )
         )
         for i in range(10)
     ]
     p_end = [
         optical_port.copy(
-            kf.kdb.Trans(3, False, i * 200_000 + i**2 * 19_000 + 500_000, 300_000)
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(3),
+                False,
+                kf.kdb.Vector(i * 200_000 + i**2 * 19_000 + 500_000, 300_000),
+            )
         )
         for i in range(10)
     ]
@@ -193,17 +204,22 @@ def test_route_bundle_route_width(
     p_start = [
         optical_port.copy(
             kf.kdb.Trans(
-                1,
+                kf.kdb.Rotation.from_quarter_turns(1),
                 False,
-                i * 200_000 - 50_000,
-                (4 - i) * 6_000 if i < 5 else (i - 5) * 6_000,
+                kf.kdb.Vector(
+                    i * 200_000 - 50_000, (4 - i) * 6_000 if i < 5 else (i - 5) * 6_000
+                ),
             )
         )
         for i in range(10)
     ]
     p_end = [
         optical_port.copy(
-            kf.kdb.Trans(3, False, i * 200_000 + i**2 * 19_000 + 500_000, 300_000)
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(3),
+                False,
+                kf.kdb.Vector(i * 200_000 + i**2 * 19_000 + 500_000, 300_000),
+            )
         )
         for i in range(10)
     ]
@@ -245,7 +261,9 @@ def test_route_length(
     c = kcl.kcell()
     p1 = optical_port.copy()
     p2 = optical_port.copy()
-    p2.trans = kf.kdb.Trans(angle2, False, x, y)
+    p2.trans = kf.kdb.Trans(
+        kf.kdb.Rotation.from_quarter_turns(angle2), False, kf.kdb.Vector(x, y)
+    )
     b90r = abs(bend90_euler.ports[0].x - bend90_euler.ports[1].x)
     if abs(x) < b90r or abs(y) < b90r:
         kf.config.logfilter.regex = "route is too small, potential collisions:"
@@ -332,14 +350,24 @@ def test_smart_routing(
         angles.append(2)
 
     for a in range(4):
-        t = base_t * kf.kdb.Trans(a // 2 * 3_000_000, a % 2 * 3_000_000)
-        start_box = t * kf.kdb.Box(350_000) if start_bbox else kf.kdb.Box()
+        t = kf.kdb.Trans(
+            displacement=kf.kdb.Vector(a // 2 * 3_000_000, a % 2 * 3_000_000)
+        ).then(base_t)
+        start_box = (
+            kf.kdb.Box.from_size(350_000, 350_000).transformed(t)
+            if start_bbox
+            else kf.kdb.Box()
+        )
         end_box = kf.kdb.Box()
         n = 0
         te = (
-            kf.kdb.Trans(2, False, -400_000, 400_000)
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(2),
+                False,
+                kf.kdb.Vector(-400_000, 400_000),
+            )
             if indirect
-            else kf.kdb.Trans(-400_000, 0)
+            else kf.kdb.Trans(displacement=kf.kdb.Vector(-400_000, 0))
         )
         for i in angles:
             angle = a + start_angle + i
@@ -347,61 +375,104 @@ def test_smart_routing(
                 for j in range(5):
                     ps = port(
                         name=f"start_{a=}_{i=}_{j=}",
-                        trans=t
-                        * kf.kdb.Trans(angle, False, 0, 0)
-                        * kf.kdb.Trans(100_000, (1 - j) * 15_000 - 50_000),
+                        trans=kf.kdb.Trans(
+                            displacement=kf.kdb.Vector(
+                                100_000, (1 - j) * 15_000 - 50_000
+                            )
+                        ).then(
+                            kf.kdb.Trans(
+                                kf.kdb.Rotation.from_quarter_turns(angle),
+                                False,
+                                kf.kdb.Vector(0, 0),
+                            ).then(t)
+                        ),
                     )
                     pe = port(
                         name=f"end_{a=}_{i=}_{j=}",
-                        trans=t
-                        * kf.kdb.Trans(a, False, 0, 0)
-                        * te
-                        * kf.kdb.Trans(0, (-n - 4 + j * 2) * 40_000 + 600_000),
+                        trans=kf.kdb.Trans(
+                            displacement=kf.kdb.Vector(
+                                0, (-n - 4 + j * 2) * 40_000 + 600_000
+                            )
+                        ).then(
+                            te.then(
+                                kf.kdb.Trans(
+                                    kf.kdb.Rotation.from_quarter_turns(a),
+                                    False,
+                                    kf.kdb.Vector(0, 0),
+                                ).then(t)
+                            )
+                        ),
                     )
                     start_ports.append(ps)
                     end_ports.append(pe)
-                    start_box += ps.trans.disp.to_p()
-                    end_box += pe.trans.disp.to_p()
+                    start_box += ps.trans.displacement.to_point()
+                    end_box += pe.trans.displacement.to_point()
                     n += 1
             elif i == -2:
                 for j in range(5):
                     ps = port(
                         name=f"start_{a=}_{i=}_{j=}",
-                        trans=t
-                        * kf.kdb.Trans(angle, False, 0, 0)
-                        * kf.kdb.Trans(100_000, j * 15_000 + 50_000),
+                        trans=kf.kdb.Trans(
+                            displacement=kf.kdb.Vector(100_000, j * 15_000 + 50_000)
+                        ).then(
+                            kf.kdb.Trans(
+                                kf.kdb.Rotation.from_quarter_turns(angle),
+                                False,
+                                kf.kdb.Vector(0, 0),
+                            ).then(t)
+                        ),
                     )
                     pe = port(
                         name=f"end_{a=}_{i=}_{j=}",
-                        trans=t
-                        * kf.kdb.Trans(a, False, 0, 0)
-                        * te
-                        * kf.kdb.Trans(0, -n * 40_000 + 600_000),
+                        trans=kf.kdb.Trans(
+                            displacement=kf.kdb.Vector(0, -n * 40_000 + 600_000)
+                        ).then(
+                            te.then(
+                                kf.kdb.Trans(
+                                    kf.kdb.Rotation.from_quarter_turns(a),
+                                    False,
+                                    kf.kdb.Vector(0, 0),
+                                ).then(t)
+                            )
+                        ),
                     )
                     start_ports.append(ps)
                     end_ports.append(pe)
-                    start_box += ps.trans.disp.to_p()
-                    end_box += pe.trans.disp.to_p()
+                    start_box += ps.trans.displacement.to_point()
+                    end_box += pe.trans.displacement.to_point()
                     n += 1
             else:
                 for j in range(10):
                     ps = port(
                         name=f"start_{a=}_{i=}_{j=}",
-                        trans=t
-                        * kf.kdb.Trans(angle, False, 0, 0)
-                        * kf.kdb.Trans(100_000, j * 15_000 - 50_000),
+                        trans=kf.kdb.Trans(
+                            displacement=kf.kdb.Vector(100_000, j * 15_000 - 50_000)
+                        ).then(
+                            kf.kdb.Trans(
+                                kf.kdb.Rotation.from_quarter_turns(angle),
+                                False,
+                                kf.kdb.Vector(0, 0),
+                            ).then(t)
+                        ),
                     )
                     pe = port(
                         name=f"end_{a=}_{i=}_{j=}",
-                        trans=t
-                        * kf.kdb.Trans(a, False, 0, 0)
-                        * te
-                        * kf.kdb.Trans(0, -n * 40_000 + 600_000),
+                        trans=kf.kdb.Trans(
+                            displacement=kf.kdb.Vector(0, -n * 40_000 + 600_000)
+                        ).then(
+                            te.then(
+                                kf.kdb.Trans(
+                                    kf.kdb.Rotation.from_quarter_turns(a),
+                                    False,
+                                    kf.kdb.Vector(0, 0),
+                                ).then(t)
+                            )
+                        ),
                     )
                     start_ports.append(ps)
                     end_ports.append(pe)
-                    start_box += ps.trans.disp.to_p()
-                    end_box += pe.trans.disp.to_p()
+                    start_box += ps.trans.displacement.to_point()
+                    end_box += pe.trans.displacement.to_point()
                     n += 1
 
         start_boxes.append(start_box)
@@ -491,7 +562,11 @@ def test_custom_router(
             name=f"in{i}",
             width=1000,
             layer_info=layers.WG,
-            trans=kf.kdb.Trans(1, False, -850_000 + i * 200_000, 0),
+            trans=kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(1),
+                False,
+                kf.kdb.Vector(-850_000 + i * 200_000, 0),
+            ),
             kcl=c.kcl,
         )
         for i in range(10)
@@ -501,7 +576,11 @@ def test_custom_router(
             name=f"in{i}",
             width=1000,
             layer_info=layers.WG,
-            trans=kf.kdb.Trans(3, False, -400_000 + i * 100_000, 200_000),
+            trans=kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(3),
+                False,
+                kf.kdb.Vector(-400_000 + i * 100_000, 200_000),
+            ),
             kcl=c.kcl,
         )
         for i in range(10)
@@ -556,8 +635,18 @@ def test_route_smart_waypoints_trans_sort(
 ) -> None:
     c = kcl.kcell(name="test_smart_route_waypoints_trans_sort")
     l_ = 15
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)] + [
-        kf.kdb.Trans(1, False, -15_000 - i * 50_000, 15 * 50_000) for i in range(l_)
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ] + [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1),
+            False,
+            kf.kdb.Vector(-15_000 - i * 50_000, 15 * 50_000),
+        )
+        for i in range(l_)
     ]
     start_ports = [
         kf.Port(name="in_{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
@@ -569,7 +658,13 @@ def test_route_smart_waypoints_trans_sort(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(2, False, 500_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2),
+                    False,
+                    kf.kdb.Vector(500_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -580,7 +675,7 @@ def test_route_smart_waypoints_trans_sort(
         separation=4000,
         straight_factory=straight_factory_dbu,
         bend90_cell=bend90_small,
-        waypoints=kf.kdb.Trans(250_000, 0),
+        waypoints=kf.kdb.Trans(displacement=kf.kdb.Vector(250_000, 0)),
         sort_ports=True,
     )
     oas_regression(c)
@@ -595,8 +690,18 @@ def test_route_smart_waypoints_pts_sort(
 ) -> None:
     c = kcl.kcell(name="test_smart_route_waypoints_pts_sort")
     l_ = 15
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)] + [
-        kf.kdb.Trans(1, False, -15_000 - i * 50_000, 15 * 50_000) for i in range(l_)
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ] + [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1),
+            False,
+            kf.kdb.Vector(-15_000 - i * 50_000, 15 * 50_000),
+        )
+        for i in range(l_)
     ]
     start_ports = [
         kf.Port(name=f"in_{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
@@ -608,7 +713,13 @@ def test_route_smart_waypoints_pts_sort(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(2, False, 500_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2),
+                    False,
+                    kf.kdb.Vector(500_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -634,8 +745,18 @@ def test_route_waypoints_non_manhattan(
 ) -> None:
     c = kcl.kcell(name="test_smart_route_waypoints_non_manhattan")
     l_ = 15
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)] + [
-        kf.kdb.Trans(1, False, -15_000 - i * 50_000, 15 * 50_000) for i in range(l_)
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ] + [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1),
+            False,
+            kf.kdb.Vector(-15_000 - i * 50_000, 15 * 50_000),
+        )
+        for i in range(l_)
     ]
     start_ports = [
         kf.Port(name=f"in_{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
@@ -647,7 +768,13 @@ def test_route_waypoints_non_manhattan(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(2, False, 500_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2),
+                    False,
+                    kf.kdb.Vector(500_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -682,8 +809,18 @@ def test_route_smart_waypoints_trans(
 ) -> None:
     c = kcl.kcell(name="test_smart_route_waypoints_trans")
     l_ = 15
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)] + [
-        kf.kdb.Trans(1, False, -15_000 - i * 50_000, 15 * 50_000) for i in range(l_)
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ] + [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1),
+            False,
+            kf.kdb.Vector(-15_000 - i * 50_000, 15 * 50_000),
+        )
+        for i in range(l_)
     ]
     start_ports = [
         kf.Port(name=f"in_{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
@@ -696,7 +833,13 @@ def test_route_smart_waypoints_trans(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(2, False, 500_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2),
+                    False,
+                    kf.kdb.Vector(500_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -707,7 +850,7 @@ def test_route_smart_waypoints_trans(
         separation=4000,
         straight_factory=straight_factory_dbu,
         bend90_cell=bend90_small,
-        waypoints=kf.kdb.Trans(250_000, 0),
+        waypoints=kf.kdb.Trans(displacement=kf.kdb.Vector(250_000, 0)),
     )
     oas_regression(c)
 
@@ -721,8 +864,18 @@ def test_route_smart_waypoints_pts(
 ) -> None:
     c = kcl.kcell(name="test_smart_route_waypoints_pts")
     l_ = 15
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)] + [
-        kf.kdb.Trans(1, False, -15_000 - i * 50_000, 15 * 50_000) for i in range(l_)
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ] + [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1),
+            False,
+            kf.kdb.Vector(-15_000 - i * 50_000, 15 * 50_000),
+        )
+        for i in range(l_)
     ]
     start_ports = [
         kf.Port(name=f"in_{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
@@ -735,7 +888,13 @@ def test_route_smart_waypoints_pts(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(2, False, 500_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2),
+                    False,
+                    kf.kdb.Vector(500_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -762,7 +921,11 @@ def test_route_generic_reorient(
     start_ports = [
         c.create_port(
             name=f"bot_{i}",
-            trans=kf.kdb.Trans(i, False, i * 30_000, 0),
+            trans=kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(i),
+                False,
+                kf.kdb.Vector(i * 30_000, 0),
+            ),
             layer_info=kf.kdb.LayerInfo(1, 0),
             width=500,
         )
@@ -771,7 +934,11 @@ def test_route_generic_reorient(
     end_ports = [
         c.create_port(
             name=f"top_{i}",
-            trans=kf.kdb.Trans(1, False, i * 30_000, 500_000),
+            trans=kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(1),
+                False,
+                kf.kdb.Vector(i * 30_000, 500_000),
+            ),
             layer_info=kf.kdb.LayerInfo(i, 0),
             width=500,
         )
@@ -811,25 +978,37 @@ def test_placer_error(
         name="end",
         width=500,
         layer_info=layers.WG,
-        trans=kf.kdb.Trans(2, False, 200_000, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(2), False, kf.kdb.Vector(200_000, 0)
+        ),
     )
     ps2 = kf.Port(
-        name="start2", width=500, layer_info=layers.WG, trans=kf.kdb.Trans(0, 5_000)
+        name="start2",
+        width=500,
+        layer_info=layers.WG,
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(0, 5_000)),
     )
     pe2 = kf.Port(
         name="end2",
         width=500,
         layer_info=layers.WG,
-        trans=kf.kdb.Trans(2, False, 200_000, 5_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(2), False, kf.kdb.Vector(200_000, 5_000)
+        ),
     )
     ps3 = kf.Port(
-        name="start3", width=500, layer_info=layers.WG, trans=kf.kdb.Trans(0, 10_000)
+        name="start3",
+        width=500,
+        layer_info=layers.WG,
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(0, 10_000)),
     )
     pe3 = kf.Port(
         name="end3",
         width=500,
         layer_info=layers.WG,
-        trans=kf.kdb.Trans(2, False, 200_000, 10_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(2), False, kf.kdb.Vector(200_000, 10_000)
+        ),
     )
 
     with pytest.raises(kf.routing.generic.PlacerError):
@@ -927,19 +1106,25 @@ def test_rf_bundle(
     p1_s = kf.Port(
         name="G1",
         cross_section=xs_g,
-        trans=kf.kdb.Trans(x=0, y=50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 50_000)
+        ),
         port_type="electrical",
     )
     p2_s = kf.Port(
         name="S",
         cross_section=xs_s,
-        trans=kf.kdb.Trans(x=0, y=0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 0)
+        ),
         port_type="electrical",
     )
     p3_s = kf.Port(
         name="G2",
         cross_section=xs_g,
-        trans=kf.kdb.Trans(x=0, y=-50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -50_000)
+        ),
         port_type="electrical",
     )
 
@@ -948,19 +1133,29 @@ def test_rf_bundle(
     p1_e = kf.Port(
         name="PG1",
         cross_section=xs_g,
-        trans=kf.kdb.Trans(rot=0, mirrx=False, x=-500_000, y=dy - 50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0),
+            False,
+            kf.kdb.Vector(-500_000, dy - 50_000),
+        ),
         port_type="electrical",
     )
     p2_e = kf.Port(
         name="PS",
         cross_section=xs_s,
-        trans=kf.kdb.Trans(rot=0, mirrx=False, x=-500_000, y=dy),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(-500_000, dy)
+        ),
         port_type="electrical",
     )
     p3_e = kf.Port(
         name="PG1",
         cross_section=xs_g,
-        trans=kf.kdb.Trans(rot=0, mirrx=False, x=-500_000, y=dy + 50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0),
+            False,
+            kf.kdb.Vector(-500_000, dy + 50_000),
+        ),
         port_type="electrical",
     )
 
@@ -968,7 +1163,7 @@ def test_rf_bundle(
 
     b = kf.kdb.Box()
     for p in ports[:3]:
-        b += p.trans.disp.to_p()
+        b += p.trans.displacement.to_point()
 
     b += kf.kdb.Point(-90_000, y=dy)
 
@@ -1021,14 +1216,18 @@ def test_sbend_routing(
     ):
         ps.append(
             c.create_port(
-                trans=kf.kdb.Trans(rot=i, mirrx=False, x=x1, y=y1),
+                trans=kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(i), False, kf.kdb.Vector(x1, y1)
+                ),
                 cross_section=xs,
                 name=f"in_{i}",
             )
         )
         pe.append(
             c.create_port(
-                trans=kf.kdb.Trans(rot=2, mirrx=False, x=x2, y=y2),
+                trans=kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2), False, kf.kdb.Vector(x2, y2)
+                ),
                 cross_section=xs,
                 name=f"out_{i}",
             )
@@ -1139,26 +1338,38 @@ def test_route_same_plane(
     p1_s = kf.Port(
         name="G1",
         cross_section=xs_s,
-        trans=kf.kdb.Trans(x=0, y=0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 0)
+        ),
         port_type="electrical",
     )
     p2_s = kf.Port(
         name="S",
         cross_section=xs_s,
-        trans=kf.kdb.Trans(x=0, y=-50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -50_000)
+        ),
         port_type="electrical",
     )
 
     p1_e = kf.Port(
         name="PG1",
         cross_section=xs_s,
-        trans=kf.kdb.Trans(rot=1, mirrx=False, x=500_000, y=-50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1),
+            False,
+            kf.kdb.Vector(500_000, -50_000),
+        ),
         port_type="electrical",
     )
     p2_e = kf.Port(
         name="PS",
         cross_section=xs_s,
-        trans=kf.kdb.Trans(rot=1, mirrx=False, x=450_000, y=-50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1),
+            False,
+            kf.kdb.Vector(450_000, -50_000),
+        ),
         port_type="electrical",
     )
 
@@ -1184,7 +1395,12 @@ def test_route_debug_waypoints_pts(
     """RouteDebug regions are populated when routing with point waypoints."""
     c = kcl.kcell(name="test_route_debug_waypoints_pts")
     l_ = 3
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)]
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ]
     start_ports = [
         kf.Port(name=f"in{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
         for i, trans in enumerate(transformations)
@@ -1195,7 +1411,13 @@ def test_route_debug_waypoints_pts(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(2, False, 500_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2),
+                    False,
+                    kf.kdb.Vector(500_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -1242,7 +1464,12 @@ def test_route_debug(
     """RouteDebug regions are populated when routing with point waypoints."""
     c = kcl.kcell(name="test_route_debug_waypoints_pts")
     l_ = 3
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)]
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ]
     start_ports = [
         kf.Port(name=f"in{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
         for i, trans in enumerate(transformations)
@@ -1253,7 +1480,13 @@ def test_route_debug(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(2, False, 500_000 + i * 200_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2),
+                    False,
+                    kf.kdb.Vector(500_000 + i * 200_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -1295,7 +1528,12 @@ def test_route_debug_opposite(
     """RouteDebug regions are populated when routing with point waypoints."""
     c = kcl.kcell(name="test_route_debug_waypoints_pts")
     l_ = 3
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)]
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ]
     start_ports = [
         kf.Port(name=f"in{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
         for i, trans in enumerate(transformations)
@@ -1306,7 +1544,13 @@ def test_route_debug_opposite(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(0, False, 500_000 + i * 200_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(0),
+                    False,
+                    kf.kdb.Vector(500_000 + i * 200_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -1348,7 +1592,12 @@ def test_route_debug_waypoints_trans(
     """RouteDebug fan_in/fan_out regions are populated with Trans waypoints."""
     c = kcl.kcell(name="test_route_debug_waypoints_trans")
     l_ = 3
-    transformations = [kf.kdb.Trans(0, False, 0, i * 50_000) for i in range(l_)]
+    transformations = [
+        kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, i * 50_000)
+        )
+        for i in range(l_)
+    ]
     start_ports = [
         kf.Port(name=f"in{i}", width=500, layer_info=layers.WG, kcl=c.kcl, trans=trans)
         for i, trans in enumerate(transformations)
@@ -1359,7 +1608,13 @@ def test_route_debug_waypoints_trans(
             width=500,
             layer_info=layers.WG,
             kcl=c.kcl,
-            trans=kf.kdb.Trans(2, False, 500_000, 0) * trans,
+            trans=trans.then(
+                kf.kdb.Trans(
+                    kf.kdb.Rotation.from_quarter_turns(2),
+                    False,
+                    kf.kdb.Vector(500_000, 0),
+                )
+            ),
         )
         for i, trans in enumerate(transformations)
     ]
@@ -1371,7 +1626,7 @@ def test_route_debug_waypoints_trans(
         separation=4000,
         straight_factory=straight_factory_dbu,
         bend90_cell=bend90_small,
-        waypoints=kf.kdb.Trans(250_000, 50_000),
+        waypoints=kf.kdb.Trans(displacement=kf.kdb.Vector(250_000, 50_000)),
         sort_ports=True,
         route_debug=debug,
     )
@@ -1406,7 +1661,9 @@ def test_route_bundle_single_return(
     c = kcl.kcell()
     p1 = optical_port.copy()
     p2 = optical_port.copy()
-    p2.trans = kf.kdb.Trans(angle2, False, x, y)
+    p2.trans = kf.kdb.Trans(
+        kf.kdb.Rotation.from_quarter_turns(angle2), False, kf.kdb.Vector(x, y)
+    )
     p2.x -= 100
     kf.routing.optical.route_bundle(
         c=c,
@@ -1432,23 +1689,91 @@ def test_route_bundle_multi_return(
     c = kcl.kcell()
     ps = [
         optical_port.copy(),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -2000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -14000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -24000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -84000)),
-        optical_port.copy(kf.kdb.Trans(3, False, -1000, -85000)),
-        optical_port.copy(kf.kdb.Trans(1, False, -50000, 5000)),
-        optical_port.copy(kf.kdb.Trans(0, False, -5000, 90_000)),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -2000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -14000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -24000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -84000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(3),
+                False,
+                kf.kdb.Vector(-1000, -85000),
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(1),
+                False,
+                kf.kdb.Vector(-50000, 5000),
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0),
+                False,
+                kf.kdb.Vector(-5000, 90_000),
+            )
+        ),
     ]
     pe = [
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 7000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 9000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 11_000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 21_000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 41_000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 51_000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 61_000)),
-        optical_port.copy(kf.kdb.Trans(0, False, -5000, 75_000)),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 7000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 9000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 11_000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 21_000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 41_000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 51_000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 61_000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0),
+                False,
+                kf.kdb.Vector(-5000, 75_000),
+            )
+        ),
     ]
 
     for i, (ps_, pe_) in enumerate(zip(ps, pe, strict=True)):
@@ -1458,8 +1783,8 @@ def test_route_bundle_multi_return(
     b2 = kf.kdb.Box()
 
     for p1, p2 in zip(ps[:-1], pe[:-1], strict=True):
-        b1 += p1.trans.disp.to_p()
-        b2 += p2.trans.disp.to_p()
+        b1 += p1.trans.displacement.to_point()
+        b2 += p2.trans.displacement.to_point()
 
     kf.routing.optical.route_bundle(
         c=c,
@@ -1487,20 +1812,66 @@ def test_route_bundle_multi_return_opposite(
     c = kcl.kcell()
     ps = [
         optical_port.copy(),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 2000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 14000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 24000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, 84000)),
-        optical_port.copy(kf.kdb.Trans(1, False, -1000, 85000)),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 2000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 14000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 24000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 84000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(1),
+                False,
+                kf.kdb.Vector(-1000, 85000),
+            )
+        ),
         # optical_port.copy(kf.kdb.Trans(3, False, -50000, -5000)),  # noqa: ERA001
     ]
     pe = [
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -7000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -9000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -11_000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -21_000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -41_000)),
-        optical_port.copy(kf.kdb.Trans(0, False, 0, -51_000)),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -7000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -9000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -11_000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -21_000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -41_000)
+            )
+        ),
+        optical_port.copy(
+            kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, -51_000)
+            )
+        ),
         # optical_port.copy(kf.kdb.Trans(0, False, 0, -61_000)),  # noqa: ERA001
     ]
 
@@ -1512,8 +1883,8 @@ def test_route_bundle_multi_return_opposite(
     b2 = kf.kdb.Box()
 
     for p1, p2 in zip(ps, pe, strict=True):
-        b1 += p1.trans.disp.to_p()
-        b2 += p2.trans.disp.to_p()
+        b1 += p1.trans.displacement.to_point()
+        b2 += p2.trans.displacement.to_point()
 
     kf.routing.optical.route_bundle(
         c=c,

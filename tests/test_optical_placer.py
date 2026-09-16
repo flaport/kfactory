@@ -30,7 +30,9 @@ def _make_o_port(
 ) -> kf.Port:
     return kf.Port(
         name=name,
-        trans=kf.kdb.Trans(angle, False, x, y),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(angle), False, kf.kdb.Vector(x, y)
+        ),
         width=500,
         layer_info=layers.WG,
         kcl=kcl,
@@ -96,13 +98,19 @@ def test_asymmetric_route_geometry(
             name="in",
             cross_section=xs,
             port_type=port_type,
-            trans=kf.kdb.Trans(2, True, points[0].to_v()),
+            trans=kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(2), True, points[0].to_vector()
+            ),
         )
         cell.create_port(
             name="out",
             cross_section=xs,
             port_type=port_type,
-            trans=kf.kdb.Trans(end_angle, False, points[-1].to_v()),
+            trans=kf.kdb.Trans(
+                kf.kdb.Rotation.from_quarter_turns(end_angle),
+                False,
+                points[-1].to_vector(),
+            ),
         )
         return cell
 
@@ -131,7 +139,11 @@ def test_asymmetric_route_geometry(
             kf.kdb.Point(span, dy),
         ]
     )
-    transform = kf.kdb.Trans(rotation, mirror, 100_000, 200_000)
+    transform = kf.kdb.Trans(
+        kf.kdb.Rotation.from_quarter_turns(rotation),
+        mirror,
+        kf.kdb.Vector(100_000, 200_000),
+    )
     p1 = kf.Port(
         name="start",
         cross_section=xs,
@@ -144,7 +156,9 @@ def test_asymmetric_route_geometry(
         cross_section=xs,
         kcl=kcl,
         port_type=port_type,
-        trans=transform * kf.kdb.Trans(2, True, points[-1].to_v()),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(2), True, points[-1].to_vector()
+        ).then(transform),
     )
     cell = kcl.kcell()
     if reverse_bends:
@@ -157,7 +171,7 @@ def test_asymmetric_route_geometry(
             cell,
             p1,
             p2,
-            [transform * p for p in points],
+            [transform.transform_point(p) for p in points],
             straight_factory=straight,
             bend90_cell=(bends[0], bends[1]),
             port_type=port_type,
@@ -187,8 +201,8 @@ def test_asymmetric_route_geometry(
     actual = kf.kdb.Region(cell.begin_shapes_rec(kcl.layer(layers.WG)))
     assert (actual ^ expected_region).is_empty()
     assert actual.merged().count() == 2
-    assert route.start_port.trans == p1.trans * kf.kdb.Trans.M90
-    assert route.end_port.trans == p2.trans * kf.kdb.Trans.M90
+    assert route.start_port.trans == kf.kdb.Trans.M90.then(p1.trans)
+    assert route.end_port.trans == kf.kdb.Trans.M90.then(p2.trans)
 
     if dy:
         with pytest.raises(ValueError, match="opposite-handed bends"):
@@ -196,7 +210,7 @@ def test_asymmetric_route_geometry(
                 kcl.kcell(),
                 p1,
                 p2,
-                [transform * p for p in points],
+                [transform.transform_point(p) for p in points],
                 straight_factory=straight,
                 bend90_cell=(bends[0], bends[0]),
                 port_type=port_type,
@@ -209,7 +223,7 @@ def test_asymmetric_route_geometry(
             kcl.kcell(),
             p1,
             incompatible_end,
-            [transform * p for p in points],
+            [transform.transform_point(p) for p in points],
             straight_factory=straight,
             bend90_cell=(bends[0], bends[1]),
             port_type=port_type,
@@ -386,14 +400,18 @@ def test_place_manhattan_bend_ports_not_90(
     bad_bend.shapes(layers.WG).insert(kf.kdb.Box(0, 0, 5000, 5000))
     bad_bend.create_port(
         name="o1",
-        trans=kf.kdb.Trans(0, False, 0, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 0)
+        ),
         width=500,
         layer=kcl.find_layer(layers.WG),
         port_type="optical",
     )
     bad_bend.create_port(
         name="o2",
-        trans=kf.kdb.Trans(2, False, 5000, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(2), False, kf.kdb.Vector(5000, 0)
+        ),
         width=500,
         layer=kcl.find_layer(layers.WG),
         port_type="optical",
@@ -579,14 +597,18 @@ def test_place_manhattan_with_bad_taper_widths(
     bad_taper.shapes(layers.WG).insert(kf.kdb.Box(0, 0, 10_000, 5000))
     bad_taper.create_port(
         name="o1",
-        trans=kf.kdb.Trans(2, False, 0, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(2), False, kf.kdb.Vector(0, 0)
+        ),
         width=998,
         layer=kcl.find_layer(layers.WG),
         port_type="optical",
     )
     bad_taper.create_port(
         name="o2",
-        trans=kf.kdb.Trans(0, False, 10_000, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(10_000, 0)
+        ),
         width=776,
         layer=kcl.find_layer(layers.WG),
         port_type="optical",
@@ -619,14 +641,18 @@ def test_place_manhattan_with_bad_taper_orientation(
     bad_taper.shapes(layers.WG).insert(kf.kdb.Box(0, 0, 10_000, 5000))
     bad_taper.create_port(
         name="o1",
-        trans=kf.kdb.Trans(0, False, 0, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 0)
+        ),
         width=500,
         layer=kcl.find_layer(layers.WG),
         port_type="optical",
     )
     bad_taper.create_port(
         name="o2",
-        trans=kf.kdb.Trans(1, False, 10_000, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1), False, kf.kdb.Vector(10_000, 0)
+        ),
         width=1000,
         layer=kcl.find_layer(layers.WG),
         port_type="optical",
@@ -864,7 +890,9 @@ def test_route_loopback_non_parallel_raises(kcl: kf.KCLayout, layers: Layers) ->
 
     p1 = kf.Port(
         name="p1",
-        trans=kf.kdb.Trans(0, False, 0, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 0)
+        ),
         width=500,
         layer_info=layers.WG,
         kcl=kcl,
@@ -872,7 +900,9 @@ def test_route_loopback_non_parallel_raises(kcl: kf.KCLayout, layers: Layers) ->
     # Different angle AND same x — triggers the error branch
     p2 = kf.Port(
         name="p2",
-        trans=kf.kdb.Trans(1, False, 0, 50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(1), False, kf.kdb.Vector(0, 50_000)
+        ),
         width=500,
         layer_info=layers.WG,
         kcl=kcl,
@@ -888,14 +918,18 @@ def test_route_loopback_with_start_end_straights(
 
     p1 = kf.Port(
         name="p1",
-        trans=kf.kdb.Trans(0, False, 0, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 0)
+        ),
         width=500,
         layer_info=layers.WG,
         kcl=kcl,
     )
     p2 = kf.Port(
         name="p2",
-        trans=kf.kdb.Trans(0, False, 0, 50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 50_000)
+        ),
         width=500,
         layer_info=layers.WG,
         kcl=kcl,
@@ -916,14 +950,18 @@ def test_route_loopback_inside_with_bend180(kcl: kf.KCLayout, layers: Layers) ->
 
     p1 = kf.Port(
         name="p1",
-        trans=kf.kdb.Trans(0, False, 0, 0),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 0)
+        ),
         width=500,
         layer_info=layers.WG,
         kcl=kcl,
     )
     p2 = kf.Port(
         name="p2",
-        trans=kf.kdb.Trans(0, False, 0, 50_000),
+        trans=kf.kdb.Trans(
+            kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 50_000)
+        ),
         width=500,
         layer_info=layers.WG,
         kcl=kcl,
@@ -941,7 +979,9 @@ def test_route_loopback_inside_with_bend180(kcl: kf.KCLayout, layers: Layers) ->
 def test_route_loopback_with_trans_inputs(layers: Layers) -> None:
     from kfactory.routing.optical import route_loopback
 
-    t1 = kf.kdb.Trans(0, False, 0, 0)
-    t2 = kf.kdb.Trans(0, False, 0, 50_000)
+    t1 = kf.kdb.Trans(kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 0))
+    t2 = kf.kdb.Trans(
+        kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(0, 50_000)
+    )
     pts = route_loopback(t1, t2, bend90_radius=10_000)
     assert isinstance(pts, list)

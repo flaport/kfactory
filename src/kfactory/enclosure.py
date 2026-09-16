@@ -1119,7 +1119,11 @@ class LayerEnclosure(BaseModel, arbitrary_types_allowed=True, frozen=True):
         for layer, layersec in self.layer_sections.items():
             layer_index = c.kcl.layer(layer)
             for sec in layersec.sections:
-                c.shapes(layer_index).insert(shape(sec.d_max, sec.d_min))
+                value = shape(sec.d_max, sec.d_min)
+                if isinstance(value, kdb.Region):
+                    c.shapes(layer_index).insert_region(value)
+                else:
+                    c.shapes(layer_index).insert(value)
 
     def apply_bbox(
         self, c: KCell, ref: kdb.LayerInfo | kdb.Region | None = None
@@ -1148,13 +1152,12 @@ class LayerEnclosure(BaseModel, arbitrary_types_allowed=True, frozen=True):
             ref_ = ref.bbox()
 
         def bbox_reg(d_max: int, d_min: int | None = None) -> kdb.Region:
-            reg_max = kdb.Region(ref_)
-            reg_max.size(d_max)
+            source = kdb.Region.from_box(ref_) if ref_ is not None else kdb.Region()
+            reg_max = source.sized(d_max)
             if d_min is None:
                 return reg_max
-            reg_min = kdb.Region(ref_)
-            reg_min.size(d_min)
-            return reg_max - reg_min
+            reg_min = source.sized(d_min)
+            return reg_max.difference(reg_min)
 
         self.apply_custom(c, bbox_reg)
 

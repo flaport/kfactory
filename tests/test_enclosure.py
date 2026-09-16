@@ -12,7 +12,7 @@ def mmi_enc(layer: kf.kdb.LayerInfo, enclosure: kf.LayerEnclosure) -> kf.KCell:
     li = c.kcl.find_layer(layer)
     c.shapes(li).insert(kf.kdb.Box(-10000, -6000, 10000, 6000))
 
-    taper = kf.kdb.Polygon(
+    taper = kf.kdb.Polygon.from_points(
         [
             kf.kdb.Point(0, -500),
             kf.kdb.Point(0, 500),
@@ -22,10 +22,10 @@ def mmi_enc(layer: kf.kdb.LayerInfo, enclosure: kf.LayerEnclosure) -> kf.KCell:
     )
 
     for t in [
-        kf.kdb.Trans(0, False, 10000, -4000),
-        kf.kdb.Trans(0, False, 10000, 4000),
-        kf.kdb.Trans(2, False, -10000, -4000),
-        kf.kdb.Trans(2, False, -10000, 4000),
+        kf.kdb.Trans(kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(10000, -4000)),
+        kf.kdb.Trans(kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(10000, 4000)),
+        kf.kdb.Trans(kf.kdb.Rotation.from_quarter_turns(2), False, kf.kdb.Vector(-10000, -4000)),
+        kf.kdb.Trans(kf.kdb.Rotation.from_quarter_turns(2), False, kf.kdb.Vector(-10000, 4000)),
     ]:
         c.shapes(li).insert(taper.transformed(t))
 
@@ -293,18 +293,18 @@ def test_bbox_sections_eq_and_hash_agree(layers: Layers) -> None:
 def test_pdkenclosure(layers: Layers, straight_blank: kf.KCell) -> None:
     c = kf.KCell(name="wg_slab")
 
-    wg_box = kf.kdb.Box(10000, 500)
+    wg_box = kf.kdb.Box.from_size(10000, 500)
     c.shapes(c.kcl.find_layer(layers.WG)).insert(wg_box)
-    c.shapes(c.kcl.find_layer(layers.WGCLAD)).insert(wg_box.enlarged(0, 2500))
+    c.shapes(c.kcl.find_layer(layers.WGCLAD)).insert(kf.kdb.Box(wg_box.left, wg_box.bottom - 2500, wg_box.right, wg_box.top + 2500))
     c.create_port(
         name="o1",
-        trans=kf.kdb.Trans(0, False, wg_box.right, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(wg_box.right, 0)),
         width=wg_box.height(),
         layer=c.kcl.find_layer(layers.WG),
     )
     c.create_port(
         name="o2",
-        trans=kf.kdb.Trans(2, False, wg_box.left, 0),
+        trans=kf.kdb.Trans(kf.kdb.Rotation.R180, False, kf.kdb.Vector(wg_box.left, 0)),
         width=wg_box.height(),
         layer=c.kcl.find_layer(layers.WG),
     )
@@ -371,7 +371,11 @@ def test_extrude_path_cross_section_symmetric_matches_legacy(
 
     for layer in (layers.WG, layers.WGCLAD):
         li = kcl.layer(layer)
-        xor = kf.kdb.Region(c_cs.shapes(li)) ^ kf.kdb.Region(c_legacy.shapes(li))
+        actual = kf.kdb.Region()
+        actual.insert_shapes(c_cs.shapes(li))
+        expected = kf.kdb.Region()
+        expected.insert_shapes(c_legacy.shapes(li))
+        xor = actual.xor(expected)
         assert xor.is_empty()
 
 
@@ -400,10 +404,14 @@ def test_extrude_path_cross_section_asymmetric(
     length_dbu = kcl.to_dbu(length)
 
     # main strip on WG keeps its signed offsets [-200, 300]
-    assert kf.kdb.Region(c.shapes(kcl.layer(layers.WG))).bbox() == kf.kdb.Box(
+    main = kf.kdb.Region()
+    main.insert_shapes(c.shapes(kcl.layer(layers.WG)))
+    assert main.bbox() == kf.kdb.Box(
         0, -200, length_dbu, 300
     )
     # aux strip on WGCLAD keeps its signed offsets [-100, 900]
-    assert kf.kdb.Region(c.shapes(kcl.layer(layers.WGCLAD))).bbox() == kf.kdb.Box(
+    aux = kf.kdb.Region()
+    aux.insert_shapes(c.shapes(kcl.layer(layers.WGCLAD)))
+    assert aux.bbox() == kf.kdb.Box(
         0, -100, length_dbu, 900
     )

@@ -252,7 +252,7 @@ def taper_factory(
 
         li = c.kcl.layer(layer)
         taper = c.shapes(li).insert(
-            kdb.Polygon(
+            kdb.Polygon.from_points(
                 [
                     kdb.Point(0, int(-width1 / 2)),
                     kdb.Point(0, width1 // 2),
@@ -264,13 +264,13 @@ def taper_factory(
 
         c.create_port(
             name="o1",
-            trans=kdb.Trans(2, False, 0, 0),
+            trans=kdb.Trans(kdb.Rotation.R180),
             cross_section=xs1,
             port_type=port_type,
         )
         c.create_port(
             name="o2",
-            trans=kdb.Trans(0, False, length, 0),
+            trans=kdb.Trans(displacement=kdb.Vector(length, 0)),
             cross_section=xs2,
             port_type=port_type,
         )
@@ -295,7 +295,9 @@ def taper_factory(
         _info.update(_additional_info)
         c.info = Info(**_info)
         c.auto_rename_ports()
-        c.boundary = taper.dpolygon
+        polygon = taper.polygon
+        assert polygon is not None  # This factory inserted a polygon shape above.
+        c.boundary = polygon.to_dtype(c.kcl.dbu)
 
         return c
 

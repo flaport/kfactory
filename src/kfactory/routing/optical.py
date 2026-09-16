@@ -1303,7 +1303,8 @@ def place_manhattan(
         taper_ports = [p for p in taper_cell.ports if p.port_type == port_type]
         if (
             len(taper_ports) != NUM_PORTS_FOR_ROUTING
-            or (taper_ports[1].trans.angle + 2) % 4 != taper_ports[0].trans.angle
+            or (taper_ports[1].trans.rotation.quarter_turns + 2) % 4
+            != taper_ports[0].trans.rotation.quarter_turns
         ):
             raise AttributeError(
                 "Taper must have only two optical ports that are 180° oriented to each"
@@ -1387,7 +1388,7 @@ def place_manhattan(
         if (pt.distance(old_pt) < b90r) and not allow_small_routes:
             raise ValueError(
                 f"distance between points {old_pt!s} and {pt!s} is too small to"
-                f" safely place bends {pt.to_s()=}, {old_pt.to_s()=},"
+                f" safely place bends {pt=}, {old_pt=},"
                 f" {pt.distance(old_pt)=} < {b90r=}"
             )
         if (
@@ -1531,7 +1532,8 @@ def place_manhattan_with_sbends(
         taper_ports = [p for p in taper_cell.ports if p.port_type == "optical"]
         if (
             len(taper_ports) != NUM_PORTS_FOR_ROUTING
-            or (taper_ports[1].trans.angle + 2) % 4 != taper_ports[0].trans.angle
+            or (taper_ports[1].trans.rotation.quarter_turns + 2) % 4
+            != taper_ports[0].trans.rotation.quarter_turns
         ):
             raise AttributeError(
                 "Taper must have only two optical ports that are 180° oriented to each"
@@ -1689,7 +1691,7 @@ def place_manhattan_with_sbends(
         if (pt.distance(old_pt) < b90r) and not allow_small_routes:
             raise ValueError(
                 f"distance between points {old_pt!s} and {pt!s} is too small to"
-                f" safely place bends {pt.to_s()=}, {old_pt.to_s()=},"
+                f" safely place bends {pt=}, {old_pt=},"
                 f" {pt.distance(old_pt)=} < {b90r=}"
             )
         if (
@@ -1814,7 +1816,7 @@ def route_loopback(
         key=lambda t: -(t[0].then(t1.inverted())).displacement.y,
     )
 
-    if (t1.angle != t2.angle) and (
+    if (t1.rotation.quarter_turns != t2.rotation.quarter_turns) and (
         (t1.displacement.x == t2.displacement.x)
         or (t1.displacement.y == t2.displacement.y)
     ):

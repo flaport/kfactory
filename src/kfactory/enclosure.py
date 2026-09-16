@@ -127,7 +127,9 @@ def _extrude_path_band_points(
 
     p_start = path[0]
     p_end = path[-1]
-    start_trans = kdb.DCplxTrans(1, start_angle, False, kdb.DVector(p_start.x, p_start.y))
+    start_trans = kdb.DCplxTrans(
+        1, start_angle, False, kdb.DVector(p_start.x, p_start.y)
+    )
     end_trans = kdb.DCplxTrans(1, end_angle, False, kdb.DVector(p_end.x, p_end.y))
 
     top_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, hi))
@@ -151,7 +153,9 @@ def _extrude_path_band_points(
     vector_top.append(top_vector.then(end_trans))
     vector_bot.append(bot_vector.then(end_trans))
 
-    return [v.displacement.to_point() for v in vector_top], [v.displacement.to_point() for v in vector_bot]
+    return [v.displacement.to_point() for v in vector_top], [
+        v.displacement.to_point() for v in vector_bot
+    ]
 
 
 def extrude_path_points(
@@ -323,7 +327,9 @@ def extrude_path_dynamic_points(
     p_start = path[0]
     p_end = path[-1]
 
-    start_trans = kdb.DCplxTrans(1, start_angle, False, kdb.DVector(p_start.x, p_start.y))
+    start_trans = kdb.DCplxTrans(
+        1, start_angle, False, kdb.DVector(p_start.x, p_start.y)
+    )
     end_trans = kdb.DCplxTrans(1, end_angle, False, kdb.DVector(p_end.x, p_end.y))
 
     if callable(widths):
@@ -336,7 +342,9 @@ def extrude_path_dynamic_points(
         p = path[1]
         z += (p - p_old).length()
         for point in path[2:]:
-            ref_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, widths(z / length) / 2))  # ty:ignore[unsupported-operator]
+            ref_vector = kdb.DCplxTrans(
+                1, 0, False, kdb.DVector(0, widths(z / length) / 2)
+            )  # ty:ignore[unsupported-operator]
             p_new = point
             v = p_new - p_old
             angle = np.rad2deg(np.arctan2(v.y, v.x))
@@ -367,7 +375,9 @@ def extrude_path_dynamic_points(
     vector_top.append(ref_vector.then(end_trans))
     vector_bot.append(ref_vector.then(kdb.DCplxTrans.R180).then(end_trans))
 
-    return [v.displacement.to_point() for v in vector_top], [v.displacement.to_point() for v in vector_bot]
+    return [v.displacement.to_point() for v in vector_top], [
+        v.displacement.to_point() for v in vector_bot
+    ]
 
 
 def extrude_path_dynamic(
@@ -908,11 +918,11 @@ class LayerEnclosure(BaseModel, arbitrary_types_allowed=True, frozen=True):
                     " Therefore the layer must be defined in calls"
                 )
         r = (
-            kdb.Region(c.begin_shapes_rec(c.kcl.layer(ref)))
+            kdb.Region.from_cell(c.kdb_cell, c.kcl.layout.layer(ref))
             if isinstance(ref, kdb.LayerInfo)
-            else ref.dup()
+            else ref.copy()
         )
-        r.merge()
+        r = r.merged()
 
         for layer, layersec in reversed(self.layer_sections.items()):
             for section in layersec.sections:
@@ -1302,10 +1312,6 @@ class KCellLayerEnclosures(BaseModel):
         if enclosure not in self.enclosures:
             self.enclosures.append(enclosure)  # ty:ignore[invalid-argument-type]
         return enclosure  # ty:ignore[invalid-return-type]
-
-
-
-
 
 
 @lru_cache(None)

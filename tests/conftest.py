@@ -307,8 +307,8 @@ def _layout_xor(
     diff = kf.kdb.LayoutDiff(
         tolerance=tolerance, include_metadata=True, ignore_layer_names=True
     )
-    ly_a = kf.kdb.Layout.read(path_a)
-    ly_b = kf.kdb.Layout.read(path_b)
+    ly_a = kf.kdb.Layout.from_file(path_a)
+    ly_b = kf.kdb.Layout.from_file(path_b)
 
     if not diff.compare(ly_a, ly_b):
         match raises:

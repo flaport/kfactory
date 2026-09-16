@@ -30,7 +30,7 @@ def test_circular_snapping(
     b = kf.factories.circular.bend_circular_factory(kcl=kcl)(
         width=1, radius=10, layer=layers.WG, angle=90
     )
-    assert b.ports["o2"].dcplx_trans.disp == kcl.to_um(b.ports["o2"].trans.disp)
+    assert b.ports["o2"].dcplx_trans.displacement == kcl.to_um(b.ports["o2"].trans.displacement)
     oas_regression(b)
 
 
@@ -42,7 +42,7 @@ def test_euler_snapping(
     b = kf.factories.euler.bend_euler_factory(kcl=kcl)(
         width=1, radius=10, layer=layers.WG, angle=90
     )
-    assert b.ports["o2"].dcplx_trans.disp == kcl.to_um(b.ports["o2"].trans.disp)
+    assert b.ports["o2"].dcplx_trans.displacement == kcl.to_um(b.ports["o2"].trans.displacement)
     oas_regression(b)
 
 
@@ -107,7 +107,7 @@ def test_no_snap(
 
     p = c.ports[0]
 
-    assert p.dcplx_trans.disp != c.kcl.to_um(p.trans.disp)
+    assert p.dcplx_trans.displacement != c.kcl.to_um(p.trans.displacement)
     oas_regression(c)
 
 
@@ -900,9 +900,9 @@ def test_delete_cell_with_delete_parents(kcl: kf.KCLayout) -> None:
 
     kcl.delete_cell(child_ci, delete_parents=True)
 
-    assert not kcl.layout.is_valid_cell_index(parent_ci)
-    assert not kcl.layout.is_valid_cell_index(grandparent_ci)
-    assert not kcl.layout.is_valid_cell_index(child_ci)
+    assert kcl.layout.cell_by_index(parent_ci) is None
+    assert kcl.layout.cell_by_index(grandparent_ci) is None
+    assert kcl.layout.cell_by_index(child_ci) is None
 
 
 def test_delete_cell_rec_locked_parents(kcl: kf.KCLayout) -> None:
@@ -922,9 +922,9 @@ def test_delete_cell_rec_with_delete_parents(kcl: kf.KCLayout) -> None:
 
     kcl.delete_cell_rec(child_ci, delete_parents=True)
 
-    assert not kcl.layout.is_valid_cell_index(parent_ci)
-    assert not kcl.layout.is_valid_cell_index(grandparent_ci)
-    assert not kcl.layout.is_valid_cell_index(child_ci)
+    assert kcl.layout.cell_by_index(parent_ci) is None
+    assert kcl.layout.cell_by_index(grandparent_ci) is None
+    assert kcl.layout.cell_by_index(child_ci) is None
 
 
 def test_delete_cells_locked_parents(kcl: kf.KCLayout) -> None:
@@ -944,6 +944,6 @@ def test_delete_cells_with_delete_parents(kcl: kf.KCLayout) -> None:
 
     kcl.delete_cells([child_ci], delete_parents=True)
 
-    assert not kcl.layout.is_valid_cell_index(parent_ci)
-    assert not kcl.layout.is_valid_cell_index(grandparent_ci)
-    assert not kcl.layout.is_valid_cell_index(child_ci)
+    assert kcl.layout.cell_by_index(parent_ci) is None
+    assert kcl.layout.cell_by_index(grandparent_ci) is None
+    assert kcl.layout.cell_by_index(child_ci) is None

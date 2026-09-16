@@ -72,7 +72,7 @@ class ProtoTInstances[T: (int, float)](ProtoInstances[T, ProtoTInstance[T]], ABC
 
     def __len__(self) -> int:
         """Length of the instances."""
-        return self._tkcell.kdb_cell.child_instances()
+        return self._tkcell.kdb_cell.instance_count()
 
     @property
     def _insts(self) -> Iterator[kdb.Instance]:

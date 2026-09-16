@@ -777,7 +777,7 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
         self._name = name
         self._info = None
         self.cell = cell
-        self.trans = trans or kdb.DCplxTrans()
+        self.trans = trans or kdb.DTrans().to_complex()
         self.a = a
         self.b = b
         self.na = na
@@ -864,7 +864,7 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
         from .kcell import KCell, ProtoTKCell, VKCell
 
         if trans is None:
-            trans = kdb.DCplxTrans()
+            trans = kdb.DTrans().to_complex()
 
         if isinstance(self.cell, VKCell):
             trans_ = trans * self.trans
@@ -882,7 +882,7 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
                     "Cannot insert a non-flattened VInstance into a VKCell when the"
                     f" name is 'None'. VKCell at {self.trans}"
                 )
-            if trans_ != kdb.DCplxTrans():
+            if trans_ != kdb.DTrans().to_complex():
                 cell_name += f"_{trans_.hash():x}"
             if cell.kcl.layout_cell(cell_name) is None:
                 cell_ = KCell(kcl=self.cell.kcl, name=cell_name)  # self.cell.dup()
@@ -934,7 +934,7 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
         )
         trans_ = base_trans.inverted() * trans_
         cell_name = self.cell.name
-        if trans_ != kdb.DCplxTrans():
+        if trans_ != kdb.DTrans().to_complex():
             cell_name += f"_{trans_.hash():x}"
         else:
             inst_ = cell.create_inst(
@@ -1004,7 +1004,7 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
         from .kcell import ProtoTKCell, VKCell
 
         if trans is None:
-            trans = kdb.DCplxTrans()
+            trans = kdb.DTrans().to_complex()
         trans_ = trans * self.trans
 
         if isinstance(self.cell, VKCell):

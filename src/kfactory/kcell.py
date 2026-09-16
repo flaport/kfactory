@@ -935,7 +935,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                     "ensure that the function has a different name than the one being "
                     "called."
                 )
-            kdb_copy.name = new_name
+            kdb_copy.rename(new_name)
 
         c = self.__class__(kcl=self.kcl, kdb_cell=kdb_copy)
         c.ports = self.ports.copy()
@@ -1292,7 +1292,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         return DInstance(kcl=self.kcl, instance=inst)
 
     def _kdb_copy(self) -> kdb.Cell:
-        return self._base.kdb_cell.dup()
+        return self.kcl.layout.duplicate_cell(self._base.kdb_cell)
 
     def layout(self) -> kdb.Layout:
         return self._base.kdb_cell.layout()
@@ -3544,7 +3544,7 @@ class VKCell(ProtoKCell[float, TVCell], UMGeometricObject, DCreatePort):
     ) -> VInstance:
         if self.locked:
             raise LockedError(self)
-        inst = VInstance(cell=cell, trans=trans or kdb.DCplxTrans())
+        inst = VInstance(cell=cell, trans=trans or kdb.DTrans().to_complex())
         self.insts.append(inst)
         return inst
 

@@ -2012,8 +2012,8 @@ class KCLayout(
 
     def cells(self, name: str | None = None) -> int | list[kdb.Cell]:
         if name is None:
-            return len(self.layout.cells())
-        return [cell for cell in self.layout.cells() if cell.name == name]
+            return self.layout.cell_index_extent()
+        return self.layout.find_cells(name)
 
     def create_cell(
         self,
@@ -2069,12 +2069,12 @@ class KCLayout(
             if not kdbc.is_destroyed():
                 kdbc.locked = False
                 if delete_parents:
-                    parent_cis = kdbc.caller_cells()
+                    parent_cis = [c.index for c in kdbc.caller_cells()]
                     parents = [self[ci] for ci in parent_cis]
                     for parent in parents:
                         parent.locked = False
-                    cis = [kdbc.cell_index(), *parent_cis]
-                    self.layout.delete_cells(cis)
+                    cis = [kdbc.index, *parent_cis]
+                    self.layout.delete_cells([self.layout.cell_by_index(ci) for ci in cis])
                     for ci in cis:
                         self.tkcells.pop(ci, None)
                 else:
@@ -2096,18 +2096,18 @@ class KCLayout(
         """
 
         with self.thread_lock:
-            kdbc = self.layout.cell(cell_index)
+            kdbc = self.layout.cell_by_index(cell_index)
             kdbc.locked = False
             if delete_parents:
-                parents = [self[ci] for ci in kdbc.caller_cells()]
+                parents = [self[c.index] for c in kdbc.caller_cells()]
                 for parent in parents:
                     parent.locked = False
                 for parent in parents:
                     self.tkcells.pop(parent.cell_index())
                     parent._base.kdb_cell.delete()
             for child in kdbc.called_cells():
-                self[child].locked = False
-            self.layout.delete_cell_rec(cell_index)
+                self[child.index].locked = False
+            self.layout.delete_cell_recursive(kdbc)
             self.rebuild()
 
     def delete_cells(
@@ -2127,25 +2127,25 @@ class KCLayout(
         """
         with self.thread_lock:
             cell_index_list = [
-                ci for ci in cell_index_list if self.layout.cell(ci) is not None
+                ci for ci in cell_index_list if self.layout.cell_by_index(ci) is not None
             ]
             if delete_parents:
                 parent_cis: set[int] = set().union(
                     *[
-                        set(self.layout.cell(ci).caller_cells())
+                        {c.index for c in self.layout.cell_by_index(ci).caller_cells()}
                         for ci in cell_index_list
                     ]
                 )
-                parents = [self.layout.cell(ci) for ci in parent_cis]
+                parents = [self.layout.cell_by_index(ci) for ci in parent_cis]
                 for parent in parents:
                     parent.locked = False
                 for parent in parents:
-                    self.tkcells.pop(parent.cell_index(), None)
+                    self.tkcells.pop(parent.index, None)
                     parent.delete()
             for ci in cell_index_list:
-                self.layout.cell(ci).locked = False
+                self.layout.cell_by_index(ci).locked = False
                 self.tkcells.pop(ci, None)
-            self.layout.delete_cells(cell_index_list)
+            self.layout.delete_cells([self.layout.cell_by_index(ci) for ci in cell_index_list])
             self.rebuild()
 
     def assign(self, layout: kdb.Layout) -> None:
@@ -2173,10 +2173,8 @@ class KCLayout(
                 del self.tkcells[ci]
 
             for cell in self.cells("*"):
-                if cell.cell_index() not in self.tkcells:
-                    self.tkcells[cell.cell_index()] = self.get_cell(
-                        cell.cell_index(), KCell
-                    ).base
+                if cell.index not in self.tkcells:
+                    self.tkcells[cell.index] = self.get_cell(cell.index, KCell).base
 
     def register_cell(self, kcell: AnyTKCell, allow_reregister: bool = False) -> None:
         """Register an existing cell in the KCLayout object.
@@ -2228,7 +2226,7 @@ class KCLayout(
         kdb_c = self.layout_cell(obj)
         if kdb_c is not None:
             try:
-                return cell_type(base=self.tkcells[kdb_c.cell_index()])
+                return cell_type(base=self.tkcells[kdb_c.index])
             except KeyError:
                 c = cell_type(name=kdb_c.name, kcl=self, kdb_cell=kdb_c)
                 c.get_meta_data()
@@ -2644,18 +2642,18 @@ class KCLayout(
 
     def top_kcells(self) -> list[KCell]:
         """Return the top KCells."""
-        return [self[tc.cell_index()] for tc in self.top_cells()]
+        return [self[tc.index] for tc in self.top_cells()]
 
     def top_kcell(self) -> KCell:
         """Return the top KCell if there is a single one."""
-        return self[self.top_cell().cell_index()]
+        return self[self.top_cell().index]
 
     def clear_kcells(self) -> None:
         """Clears all cells in the Layout object."""
         for kc in self.kcells.values():
             kc.locked = False
         for tc in self.top_kcells():
-            tc.kdb_cell.prune_cell()
+            self.layout.prune_cell(tc.kdb_cell)
         self.tkcells = {}
 
     def get_enclosure(

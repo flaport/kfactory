@@ -2029,11 +2029,8 @@ class KCLayout(
         return [layer.index for layer in self.layout.layers()]
 
     def get_info(self, index: int) -> kdb.LayerInfo:
-        """Read metadata through an owner-checked native layer handle."""
-        layer = self.layout.layer_by_index(index)
-        if layer is None:
-            raise ValueError(f"Unknown layer index {index}")
-        return self.layout.layer_info(layer)
+        """Return KLayout's layer metadata value for a native layer index."""
+        return self.layout.get_info(index)
 
     def layout_cell(self, name: str | int) -> kdb.Cell | None:
         """Get a cell by name or index from the Layout object."""

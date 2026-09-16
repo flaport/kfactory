@@ -128,8 +128,8 @@ def test_instance_mirror(
     mp1 = kf.kdb.Point(50000, 25000)
     mp2 = -mp1
 
-    p1 = disp * mp1
-    p2 = disp * mp2
+    p1 = mp1.transformed(disp)
+    p2 = mp2.transformed(disp)
 
     b2.mirror((p1.x, p1.y), (p2.x, p2.y))
 
@@ -149,8 +149,8 @@ def test_dmirror(layers: Layers, kcl: kf.KCLayout, bend90_euler: kf.KCell) -> No
     mp1 = c.kcl.to_um(kf.kdb.Point(50000, 25000))
     mp2 = -mp1
 
-    p1 = disp * mp1
-    p2 = disp * mp2
+    p1 = mp1.transformed(disp)
+    p2 = mp2.transformed(disp)
 
     b2.dmirror((p1.x, p1.y), (p2.x, p2.y))
 

@@ -37,6 +37,8 @@ from pydantic import (
     field_validator,
 )
 
+from rlayout import __klayout_version__
+
 from . import __version__, kdb
 from .conf import CheckInstances, CheckUnnamedCells, config, logger
 from .cross_section import (
@@ -295,7 +297,7 @@ class KCLayout(
     layer_enclosures: LayerEnclosureModel
     cross_sections: CrossSectionModel
     enclosure: KCellEnclosure
-    library: kdb.Library
+    library: kdb.LiveLibrary
 
     factories: Factories[WrappedKCellFunc[Any, ProtoTKCell[Any]]]
     virtual_factories: Factories[WrappedVKCellFunc[Any, VKCell]]
@@ -386,7 +388,7 @@ class KCLayout(
                 defined.
             info: Additional metadata to put into info attribute.
         """
-        library = kdb.Library()
+        library = kdb.LiveLibrary()
         layout = library.layout()
         layer_stack = layer_stack or LayerStack()
         constants_ = constants() if constants else Constants()
@@ -421,7 +423,7 @@ class KCLayout(
             info=Info(**info) if info else Info(),
             settings=KCellSettings(
                 version=__version__,
-                klayout_version=kdb.__version__,  # ty:ignore[unresolved-attribute]
+                klayout_version=__klayout_version__,  # ty:ignore[unresolved-attribute]
                 meta_format="v3",
             ),
             decorators=Decorators(self),

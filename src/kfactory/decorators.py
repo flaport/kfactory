@@ -694,9 +694,9 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
         return f"{self._f_orig.__module__}.{self._f_orig.__qualname__}"  # ty:ignore[unresolved-attribute]
 
     def prune(self) -> None:
-        cells = [c for c in self.cache.values() if not c._destroyed()]
+        cells = [c for c in self.cache.values() if not c.destroyed()]
         caller_cis = {
-            ci for cell in cells for ci in cell.caller_cells() if not cell._destroyed()
+            ci for cell in cells for ci in cell.caller_cells() if not cell.destroyed()
         }
         caller_cis |= {c.cell_index() for c in cells}
         self.kcl.delete_cells(list(caller_cis))

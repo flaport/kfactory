@@ -843,7 +843,11 @@ class KCLayout(
         """Convert Shapes or values in dbu to DShapes or floats in um."""
         if other is None:
             return None
-        return kdb.CplxTrans(self.layout.dbu) * other
+        if isinstance(other, int):
+            return kdb.CplxTrans(
+                self.layout.dbu, 0, False, kdb.DVector(0, 0)
+            ).transform_distance(other)
+        return other.to_dtype(self.layout.dbu)
 
     @overload
     def to_dbu(self, other: None) -> None: ...
@@ -891,7 +895,11 @@ class KCLayout(
         """Convert Shapes or values in dbu to DShapes or floats in um."""
         if other is None:
             return None
-        return kdb.CplxTrans(self.layout.dbu).inverted() * other
+        if isinstance(other, (int, float)):
+            return kdb.CplxTrans(
+                self.layout.dbu, 0, False, kdb.DVector(0, 0)
+            ).inverted().transform_distance(other)
+        return other.to_itype(self.layout.dbu)
 
     @overload
     def schematic_cell[**KCellParams](
@@ -2042,7 +2050,7 @@ class KCLayout(
         with self.thread_lock:
             ci = cell if isinstance(cell, int) else cell.cell_index()
             kdbc = self[ci]._base.kdb_cell
-            if not kdbc._destroyed():
+            if not kdbc.is_destroyed():
                 kdbc.locked = False
                 if delete_parents:
                     parent_cis = kdbc.caller_cells()
@@ -2142,7 +2150,7 @@ class KCLayout(
                     del factory.cache[key]
 
             for ci, c in self.tkcells.items():
-                if c.kdb_cell._destroyed():
+                if c.kdb_cell.is_destroyed():
                     kcells2delete.append(ci)
 
             for ci in kcells2delete:
@@ -2565,7 +2573,7 @@ class KCLayout(
             return self.layout.write(filename, options)
         except RuntimeError:
             all_indices = {
-                c.cell_index() for c in self.layout.each_cell() if not c._destroyed()
+                c.cell_index() for c in self.layout.each_cell() if not c.is_destroyed()
             }
             _check_duplicate_cell_names(
                 self.layout,
@@ -2608,7 +2616,7 @@ class KCLayout(
             return self.layout.write_bytes(options)
         except RuntimeError:
             all_indices = {
-                c.cell_index() for c in self.layout.each_cell() if not c._destroyed()
+                c.cell_index() for c in self.layout.each_cell() if not c.is_destroyed()
             }
             _check_duplicate_cell_names(
                 self.layout,

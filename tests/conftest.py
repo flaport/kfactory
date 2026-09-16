@@ -252,7 +252,7 @@ def oas_regression(
     file_regression: FileRegressionFixture,
 ) -> Callable[[kf.ProtoTKCell[Any]], None]:
     saveopts = kf.save_layout_options()
-    saveopts.format = "OASIS"
+    saveopts.set("format", "OASIS")
 
     raises: Literal["error", "warning"] = (
         "error" if platform.system() == "Linux" else "warning"

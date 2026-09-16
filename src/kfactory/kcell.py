@@ -172,15 +172,15 @@ def _cell_detail(
                 parts.append(loc)
         else:
             c = layout.cell(ci)
-            cell_name = c.name if c is not None and not c._destroyed() else None
+            cell_name = c.name if c is not None and not c.is_destroyed() else None
             parts.append(f"no factory, name={cell_name!r}")
 
     c = layout.cell(ci)
-    if c is not None and not c._destroyed():
+    if c is not None and not c.is_destroyed():
         parent_names = []
         for parent_ci in c.caller_cells():
             pc = layout.cell(parent_ci)
-            if pc is not None and not pc._destroyed():
+            if pc is not None and not pc.is_destroyed():
                 parent_names.append(pc.name)
         if parent_names:
             parts.append(f"parent(s): {parent_names}")
@@ -210,7 +210,7 @@ def _check_duplicate_cell_names(
     name_to_indices: dict[str, list[int]] = defaultdict(list)
     for ci in cell_indices:
         c = layout.cell(ci)
-        if c is not None and not c._destroyed():
+        if c is not None and not c.is_destroyed():
             name_to_indices[c.name].append(ci)
 
     duplicates = {
@@ -237,7 +237,7 @@ def _check_duplicate_cell_names(
     for name, indices in duplicates.items():
         for ci in indices[1:]:
             c = layout.cell(ci)
-            if c is None or c._destroyed():
+            if c is None or c.is_destroyed():
                 continue
             unique = layout.unique_cell_name(name)
             was_locked = c.is_locked()
@@ -1439,7 +1439,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             case True, True:
                 self.kcl.set_meta_data()
                 for kcell in (self.kcl[ci] for ci in self.called_cells()):
-                    if not kcell._destroyed():
+                    if not kcell.destroyed():
                         if kcell.is_library_cell():
                             kcell.convert_to_static(recursive=True)
                         kcell.set_meta_data()
@@ -1449,12 +1449,12 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             case True, False:
                 self.kcl.set_meta_data()
                 for kcell in (self.kcl[ci] for ci in self.called_cells()):
-                    if not kcell._destroyed():
+                    if not kcell.destroyed():
                         kcell.set_meta_data()
                 self.set_meta_data()
             case False, True:
                 for kcell in (self.kcl[ci] for ci in self.called_cells()):
-                    if kcell.is_library_cell() and not kcell._destroyed():
+                    if kcell.is_library_cell() and not kcell.destroyed():
                         kcell.convert_to_static(recursive=True)
                 if self.is_library_cell():
                     self.convert_to_static(recursive=True)
@@ -1497,7 +1497,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             case True, True:
                 self.kcl.set_meta_data()
                 for kcell in (self.kcl[ci] for ci in self.called_cells()):
-                    if not kcell._destroyed():
+                    if not kcell.destroyed():
                         if kcell.is_library_cell():
                             kcell.convert_to_static(recursive=True)
                         kcell.set_meta_data()
@@ -1507,19 +1507,19 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             case True, False:
                 self.kcl.set_meta_data()
                 for kcell in (self.kcl[ci] for ci in self.called_cells()):
-                    if not kcell._destroyed():
+                    if not kcell.destroyed():
                         kcell.set_meta_data()
                 self.set_meta_data()
             case False, True:
                 for kcell in (self.kcl[ci] for ci in self.called_cells()):
-                    if kcell.is_library_cell() and not kcell._destroyed():
+                    if kcell.is_library_cell() and not kcell.destroyed():
                         kcell.convert_to_static(recursive=True)
                 if self.is_library_cell():
                     self.convert_to_static(recursive=True)
             case _:
                 ...
 
-        save_options.format = save_options.format or "OASIS"
+        save_options.set("format", save_options.get("format") or "OASIS")
         save_options.clear_cells()
         save_options.select_cell(self.cell_index())
         try:

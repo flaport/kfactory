@@ -432,6 +432,9 @@ class KCLayout(
             technology_file=technology_file,
         )
 
+        previous = kcls.get(self.name)
+        if previous is not None and not previous.library._destroyed():
+            previous.library.delete()
         self.library.register(self.name)
         # Materialize `layers` so LayerEnum.__init__ registers each layer's name
         # on `self.layout`; otherwise `find_layer(layer, datatype)` called

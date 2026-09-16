@@ -915,7 +915,11 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
             else:
                 cell_ = cell.kcl[cell_name]
             inst_ = cell.create_inst(
-                cell=cell_, na=self.na, nb=self.nb, a=self.a, b=self.b
+                cell=cell_,
+                na=self.na,
+                nb=self.nb,
+                a=self.a.to_itype(cell.kcl.dbu),
+                b=self.b.to_itype(cell.kcl.dbu),
             )
             inst_.transform(base_trans)
             if self._name is not None:

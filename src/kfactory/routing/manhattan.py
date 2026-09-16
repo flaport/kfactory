@@ -285,7 +285,7 @@ class ManhattanRouterSide:
 
     @t.setter
     def t(self, __t: kdb.Trans, /) -> None:
-        self._t.assign(__t)
+        self._t = __t
 
     @property
     def tv(self) -> kdb.Vector:

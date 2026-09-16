@@ -702,7 +702,7 @@ def test_transform(
 
     c.transform(inst.instance, t)
 
-    assert inst.trans == t * t_
+    assert inst.trans == t_.then(t)
     c.delete()
     c2.delete()
 

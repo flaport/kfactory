@@ -1760,13 +1760,12 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
     ) -> Instance | None:
         """Transforms the instance or cell with the transformation given."""
         if trans is not None:
-            return Instance(
-                self.kcl,
-                self._base.kdb_cell.transform(
-                    cast("kdb.Instance", inst_or_trans),
-                    trans,
-                ),
-            )
+            inst = cast("kdb.Instance", inst_or_trans)
+            parent = inst.parent_cell
+            if self.destroyed() or parent.layout() is not self.kcl.layout or parent.cell_index != self.cell_index():
+                raise ValueError("Instance belongs to another parent cell")
+            inst.transform(trans)
+            return Instance(self.kcl, inst)
         self._base.kdb_cell.transform(
             cast(
                 "kdb.Trans | kdb.DTrans | kdb.ICplxTrans | kdb.DCplxTrans",

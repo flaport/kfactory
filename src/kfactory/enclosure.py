@@ -801,26 +801,39 @@ class LayerEnclosure(BaseModel, arbitrary_types_allowed=True, frozen=True):
             d: Distance to pass to the shape. Can be any integer. [dbu]
             shape: Function returning a shape for the minkowski region.
         """
+        def minkowski(region: kdb.Region, kernel: list[kdb.Point] | kdb.Box | kdb.Edge | kdb.Polygon) -> kdb.Region:
+            if isinstance(kernel, kdb.Edge):
+                return region.minkowski_sum_edge(kernel)
+            if isinstance(kernel, kdb.Box):
+                return region.minkowski_sum_box(kernel)
+            if isinstance(kernel, kdb.Polygon):
+                return region.minkowski_sum_polygon(kernel)
+            return region.minkowski_sum_trace(kernel)
+
         if d is None:
             return kdb.Region()
         if d == 0:
-            return r.dup()
+            return r.copy()
         if d > 0:
-            return r.minkowski_sum(shape(d))
+            return minkowski(r, shape(d))
         shape_ = shape(abs(d))
         if isinstance(shape_, list):
-            box_shape = kdb.Polygon(cast("list[kdb.Point]", shape_))
-            bbox_maxsize = max(
-                box_shape.bbox().width(),
-                box_shape.bbox().height(),
-            )
+            bounds = kdb.Polygon.from_points(shape_).bbox()
+        elif isinstance(shape_, kdb.Box):
+            bounds = shape_
         else:
-            bbox_maxsize = max(
-                shape_.bbox().width(),
-                shape_.bbox().height(),
-            )
-        bbox_r = kdb.Region(r.bbox().enlarged(bbox_maxsize))
-        return r - (bbox_r - r).minkowski_sum(shape_)
+            bounds = shape_.bbox()
+        bbox_maxsize = max(bounds.width(), bounds.height()) if bounds is not None else 0
+        source_bounds = r.bbox()
+        if source_bounds is None:
+            return kdb.Region()
+        bbox_r = kdb.Region.from_box(kdb.Box(
+            source_bounds.left - bbox_maxsize,
+            source_bounds.bottom - bbox_maxsize,
+            source_bounds.right + bbox_maxsize,
+            source_bounds.top + bbox_maxsize,
+        ))
+        return r.difference(minkowski(bbox_r.difference(r), shape_))
 
     def apply_minkowski_enc(
         self,
@@ -850,14 +863,14 @@ class LayerEnclosure(BaseModel, arbitrary_types_allowed=True, frozen=True):
             case Direction.Y:
 
                 def edge(d: int) -> kdb.Edge:
-                    return kdb.Edge(0, -d, 0, d)
+                    return kdb.Edge(kdb.Point(0, -d), kdb.Point(0, d))
 
                 self.apply_minkowski_custom(c, ref=ref, shape=edge)
 
             case Direction.X:
 
                 def edge(d: int) -> kdb.Edge:
-                    return kdb.Edge(-d, 0, d, 0)
+                    return kdb.Edge(kdb.Point(-d, 0), kdb.Point(d, 0))
 
                 self.apply_minkowski_custom(c, ref=ref, shape=edge)
 
@@ -926,9 +939,10 @@ class LayerEnclosure(BaseModel, arbitrary_types_allowed=True, frozen=True):
 
         for layer, layersec in reversed(self.layer_sections.items()):
             for section in layersec.sections:
-                c.shapes(c.kcl.layer(layer)).insert(
-                    self.minkowski_region(r, section.d_max, shape)
-                    - self.minkowski_region(r, section.d_min, shape)
+                c.shapes(c.kcl.layer(layer)).insert_region(
+                    self.minkowski_region(r, section.d_max, shape).difference(
+                        self.minkowski_region(r, section.d_min, shape)
+                    )
                 )
 
     def apply_minkowski_tiled(

@@ -62,7 +62,7 @@ def test_dkcell_locked(layers: Layers) -> None:
             ),
         ),
         port_type="optical",
-        trans=kf.kdb.Trans(1, 0),
+        trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
     )
 
     with pytest.raises(LockedError):
@@ -87,7 +87,7 @@ def test_dkcell_locked(layers: Layers) -> None:
                 ),
             ),
             port_type="optical",
-            trans=kf.kdb.Trans(1, 0),
+            trans=kf.kdb.Trans(displacement=kf.kdb.Vector(1, 0)),
         )
 
     with pytest.raises(ValueError):

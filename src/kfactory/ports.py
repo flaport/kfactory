@@ -809,18 +809,18 @@ class Ports(ProtoPorts[int], ICreatePort):
             base = port.base.model_copy()
             if not keep_mirror:
                 if base.trans is not None:
-                    base.trans.mirror = False
+                    base.trans = base.trans.with_mirror_x(False)
                 elif base.dcplx_trans is not None:
-                    base.dcplx_trans.mirror = False
+                    base.dcplx_trans = base.dcplx_trans.with_mirror_x(False)
             if name is not None:
                 base.name = name
             self._bases.append(base)
             self._add_to_name_cache(base)
             port_ = Port(base=base)
         else:
-            dcplx_trans = port.dcplx_trans.dup()
+            dcplx_trans = port.dcplx_trans
             if not keep_mirror:
-                dcplx_trans.mirror = False
+                dcplx_trans = dcplx_trans.with_mirror_x(False)
             base = port.base.model_copy()
             base.trans = kdb.Trans.R0
             base.dcplx_trans = None
@@ -943,18 +943,18 @@ class DPorts(ProtoPorts[float], DCreatePort):
             base = port.base.model_copy()
             if not keep_mirror:
                 if base.trans is not None:
-                    base.trans.mirror = False
+                    base.trans = base.trans.with_mirror_x(False)
                 elif base.dcplx_trans is not None:
-                    base.dcplx_trans.mirror = False
+                    base.dcplx_trans = base.dcplx_trans.with_mirror_x(False)
             if name is not None:
                 base.name = name
             self._bases.append(base)
             self._add_to_name_cache(base)
             port_ = DPort(base=base)
         else:
-            dcplx_trans = port.dcplx_trans.dup()
+            dcplx_trans = port.dcplx_trans
             if not keep_mirror:
-                dcplx_trans.mirror = False
+                dcplx_trans = dcplx_trans.with_mirror_x(False)
             base = port.base.model_copy()
             base.trans = kdb.Trans.R0
             base.dcplx_trans = None

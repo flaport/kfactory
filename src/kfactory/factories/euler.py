@@ -338,7 +338,11 @@ def bend_euler_factory(
         c.create_port(
             name="o1",
             cross_section=xs,
-            trans=kdb.Trans(2, False, c.kcl.to_dbu(backbone[0]).to_v()),
+            trans=kdb.Trans(
+                kdb.Rotation.from_quarter_turns(2),
+                False,
+                c.kcl.to_dbu(backbone[0]).to_vector(),
+            ),
             port_type=port_type,
         )
 
@@ -346,14 +350,18 @@ def bend_euler_factory(
             _ang = round(angle)
             c.create_port(
                 name="o2",
-                trans=kdb.Trans(_ang // 90, False, c.kcl.to_dbu(backbone[-1]).to_v()),
+                trans=kdb.Trans(
+                    kdb.Rotation.from_quarter_turns(_ang // 90),
+                    False,
+                    c.kcl.to_dbu(backbone[-1]).to_vector(),
+                ),
                 cross_section=xs,
                 port_type=port_type,
             )
         else:
             c.create_port(
                 name="o2",
-                dcplx_trans=kdb.DCplxTrans(1, angle, False, backbone[-1].to_v()),
+                dcplx_trans=kdb.DCplxTrans(1, angle, False, backbone[-1].to_vector()),
                 cross_section=xs,
                 port_type=port_type,
             )
@@ -504,13 +512,13 @@ def bend_s_euler_factory(
             p2 = c.kcl.to_dbu(backbone[-1])
         c.create_port(
             name="o1",
-            trans=kdb.Trans(2, False, p1.to_v()),
+            trans=kdb.Trans(kdb.Rotation.from_quarter_turns(2), False, p1.to_vector()),
             cross_section=xs,
             port_type=port_type,
         )
         c.create_port(
             name="o2",
-            trans=kdb.Trans(0, False, p2.to_v()),
+            trans=kdb.Trans(kdb.Rotation.from_quarter_turns(0), False, p2.to_vector()),
             cross_section=xs,
             port_type=port_type,
         )

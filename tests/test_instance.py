@@ -124,7 +124,7 @@ def test_instance_mirror(
 
     c << b
     b2 = c << b
-    disp = kdb.Trans(5000, 5000)
+    disp = kdb.Trans(displacement=kdb.Vector(5000, 5000))
     mp1 = kf.kdb.Point(50000, 25000)
     mp2 = -mp1
 
@@ -145,7 +145,7 @@ def test_dmirror(layers: Layers, kcl: kf.KCLayout, bend90_euler: kf.KCell) -> No
 
     c << b
     b2 = c << b
-    disp = kdb.Trans(5000, 5000).to_dtype(c.kcl.dbu)
+    disp = kdb.Trans(displacement=kdb.Vector(5000, 5000)).to_dtype(c.kcl.dbu)
     mp1 = c.kcl.to_um(kf.kdb.Point(50000, 25000))
     mp2 = -mp1
 

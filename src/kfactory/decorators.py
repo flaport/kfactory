@@ -286,9 +286,9 @@ def _check_instances(
 def _snap_ports(cell: ProtoTKCell[Any], kcl: KCLayout) -> None:
     for port in cell.to_itype().ports:
         if port.base.dcplx_trans:
-            dup = port.base.dcplx_trans.dup()
-            dup.disp = kcl.to_um(kcl.to_dbu(port.base.dcplx_trans.disp))
-            port.dcplx_trans = dup
+            port.dcplx_trans = port.base.dcplx_trans.with_displacement(
+                kcl.to_um(kcl.to_dbu(port.base.dcplx_trans.displacement))
+            )
 
 
 def _check_ports(cell: ProtoTKCell[Any] | VKCell) -> None:
@@ -616,7 +616,7 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
                     if len(cell.ports) != port_lengths:
                         received_ports = PortsDefinition()
                         for port in cell.ports:
-                            mapped: Direction = Direction(mapping[port.trans.angle])
+                            mapped: Direction = Direction(mapping[port.angle])
                             if mapped not in received_ports:
                                 received_ports[mapped] = []  # ty:ignore[invalid-key]
                             received_ports[mapped].append(port.name)  # ty:ignore[invalid-key]
@@ -633,13 +633,13 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
                         for port in cell.ports:
                             if (
                                 port.name
-                                not in self.ports_definition[mapping[port.trans.angle]]  # ty:ignore[invalid-key]
+                                not in self.ports_definition[mapping[port.angle]]  # ty:ignore[invalid-key]
                             ):
                                 found_errors = True
                         if found_errors:
                             received_ports = PortsDefinition()
                             for port in cell.ports:
-                                mapped = Direction(mapping[port.trans.angle])
+                                mapped = Direction(mapping[port.angle])
                                 if mapped not in received_ports:
                                     received_ports[mapped] = []  # ty:ignore[invalid-key]
                                 received_ports[mapped].append(port.name)  # ty:ignore[invalid-key]
@@ -923,7 +923,7 @@ class WrappedVKCellFunc[**VKCellParams, VK: VKCell]:
                     if len(cell.ports) != port_lengths:
                         received_ports = PortsDefinition()
                         for port in cell.ports:
-                            mapped: Direction = Direction(mapping[port.trans.angle])
+                            mapped: Direction = Direction(mapping[port.angle])
                             if mapped not in received_ports:
                                 received_ports[mapped] = []  # ty:ignore[invalid-key]
                             received_ports[mapped].append(port.name)  # ty:ignore[invalid-key]

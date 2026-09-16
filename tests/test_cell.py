@@ -101,7 +101,7 @@ def test_no_snap(
     c.create_port(
         name="o1",
         width=c.kcl.to_dbu(1),
-        dcplx_trans=kf.kdb.DCplxTrans(1, 90, False, 0.0005, 0),
+        dcplx_trans=kf.kdb.DCplxTrans(1, 90, False, kf.kdb.DVector(0.0005, 0)),
         layer=c.kcl.find_layer(layers.WG),
     )
 
@@ -145,7 +145,7 @@ def test_ports_cell(
     c.create_port(
         name="o1",
         width=c.kcl.to_dbu(1),
-        dcplx_trans=kf.kdb.DCplxTrans(1, 90, False, 0.0005, 0),
+        dcplx_trans=kf.kdb.DCplxTrans(1, 90, False, kf.kdb.DVector(0.0005, 0)),
         layer=c.kcl.find_layer(layers.WG),
     )
     assert c["o1"]
@@ -162,7 +162,7 @@ def test_ports_instance(
     c.create_port(
         name="o1",
         width=c.kcl.to_dbu(1),
-        dcplx_trans=kf.kdb.DCplxTrans(1, 90, False, 0.0005, 0),
+        dcplx_trans=kf.kdb.DCplxTrans(1, 90, False, kf.kdb.DVector(0.0005, 0)),
         layer=c.kcl.find_layer(layers.WG),
     )
     c2 = kcl.kcell()
@@ -696,7 +696,9 @@ def test_transform(
     t_ = kf.kdb.Trans.M90
     inst.transform(t_)
 
-    t = kf.kdb.Trans(x=50_000, y=10_000)
+    t = kf.kdb.Trans(
+        kf.kdb.Rotation.from_quarter_turns(0), False, kf.kdb.Vector(50_000, 10_000)
+    )
 
     c.transform(inst.instance, t)
 

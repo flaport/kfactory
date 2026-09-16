@@ -322,7 +322,9 @@ class GeometricObject[T: (int, float)](ABC):
     @ix.setter
     def ix(self, __val: int, /) -> None:
         """Moves self so that the bbox's center x-coordinate."""
-        self.transform(kdb.Trans(__val - self.ibbox().center().x, 0))
+        self.transform(
+            kdb.Trans(displacement=kdb.Vector(__val - self.ibbox().center().x, 0))
+        )
 
     @property
     def iy(self) -> int:
@@ -332,7 +334,9 @@ class GeometricObject[T: (int, float)](ABC):
     @iy.setter
     def iy(self, __val: int, /) -> None:
         """Moves self so that the bbox's center y-coordinate."""
-        self.transform(kdb.Trans(0, __val - self.ibbox().center().y))
+        self.transform(
+            kdb.Trans(displacement=kdb.Vector(0, __val - self.ibbox().center().y))
+        )
 
     @property
     def ixmin(self) -> int:
@@ -342,7 +346,7 @@ class GeometricObject[T: (int, float)](ABC):
     @ixmin.setter
     def ixmin(self, __val: int, /) -> None:
         """Moves self so that the bbox's left x-coordinate."""
-        self.transform(kdb.Trans(__val - self.ibbox().left, 0))
+        self.transform(kdb.Trans(displacement=kdb.Vector(__val - self.ibbox().left, 0)))
 
     @property
     def iymin(self) -> int:
@@ -352,7 +356,9 @@ class GeometricObject[T: (int, float)](ABC):
     @iymin.setter
     def iymin(self, __val: int, /) -> None:
         """Moves self so that the bbox's bottom y-coordinate."""
-        self.transform(kdb.Trans(0, __val - self.ibbox().bottom))
+        self.transform(
+            kdb.Trans(displacement=kdb.Vector(0, __val - self.ibbox().bottom))
+        )
 
     @property
     def ixmax(self) -> int:
@@ -362,7 +368,9 @@ class GeometricObject[T: (int, float)](ABC):
     @ixmax.setter
     def ixmax(self, __val: int, /) -> None:
         """Moves self so that the bbox's right x-coordinate."""
-        self.transform(kdb.Trans(__val - self.ibbox().right, 0))
+        self.transform(
+            kdb.Trans(displacement=kdb.Vector(__val - self.ibbox().right, 0))
+        )
 
     @property
     def iymax(self) -> int:
@@ -372,7 +380,7 @@ class GeometricObject[T: (int, float)](ABC):
     @iymax.setter
     def iymax(self, __val: int, /) -> None:
         """Moves self so that the bbox's top y-coordinate."""
-        self.transform(kdb.Trans(0, __val - self.ibbox().top))
+        self.transform(kdb.Trans(displacement=kdb.Vector(0, __val - self.ibbox().top)))
 
     @property
     def ixsize(self) -> int:
@@ -382,7 +390,9 @@ class GeometricObject[T: (int, float)](ABC):
     @ixsize.setter
     def ixsize(self, __val: int, /) -> None:
         """Sets the width of the bounding box."""
-        self.transform(kdb.Trans(__val - self.ibbox().width(), 0))
+        self.transform(
+            kdb.Trans(displacement=kdb.Vector(__val - self.ibbox().width(), 0))
+        )
 
     @property
     def iysize(self) -> int:
@@ -392,7 +402,9 @@ class GeometricObject[T: (int, float)](ABC):
     @iysize.setter
     def iysize(self, __val: int, /) -> None:
         """Sets the height of the bounding box."""
-        self.transform(kdb.Trans(0, __val - self.ibbox().height()))
+        self.transform(
+            kdb.Trans(displacement=kdb.Vector(0, __val - self.ibbox().height()))
+        )
 
     @property
     def icenter(self) -> tuple[int, int]:
@@ -405,7 +417,9 @@ class GeometricObject[T: (int, float)](ABC):
         """Moves self so that the bbox's center coordinate."""
         self.transform(
             kdb.Trans(
-                val[0] - self.ibbox().center().x, val[1] - self.ibbox().center().y
+                displacement=kdb.Vector(
+                    val[0] - self.ibbox().center().x, val[1] - self.ibbox().center().y
+                )
             )
         )
 
@@ -427,10 +441,14 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate [dbu]
         """
         if destination is None:
-            self.transform(kdb.Trans(*origin))
+            self.transform(kdb.Trans(displacement=kdb.Vector(*origin)))
         else:
             self.transform(
-                kdb.Trans(destination[0] - origin[0], destination[1] - origin[1])
+                kdb.Trans(
+                    displacement=kdb.Vector(
+                        destination[0] - origin[0], destination[1] - origin[1]
+                    )
+                )
             )
         return self
 
@@ -448,9 +466,9 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate [dbu]
         """
         if destination is None:
-            self.transform(kdb.Trans(origin, 0))
+            self.transform(kdb.Trans(displacement=kdb.Vector(origin, 0)))
         else:
-            self.transform(kdb.Trans(destination - origin, 0))
+            self.transform(kdb.Trans(displacement=kdb.Vector(destination - origin, 0)))
         return self
 
     @overload
@@ -467,18 +485,20 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate [dbu]
         """
         if destination is None:
-            self.transform(kdb.Trans(0, origin))
+            self.transform(kdb.Trans(displacement=kdb.Vector(0, origin)))
         else:
-            self.transform(kdb.Trans(0, destination - origin))
+            self.transform(kdb.Trans(displacement=kdb.Vector(0, destination - origin)))
         return self
 
     def irotate(self, angle: int, center: tuple[int, int] | None = None) -> Self:
         """Rotate self in increments of 90°."""
         t: kdb.Trans | None = None
         if center:
-            t = kdb.Trans(*center)
+            t = kdb.Trans(displacement=kdb.Vector(*center))
             self.transform(t.inverted())
-        self.transform(kdb.Trans(rot=angle, mirrx=False, x=0, y=0))
+        self.transform(
+            kdb.Trans(kdb.Rotation.from_quarter_turns(angle), False, kdb.Vector(0, 0))
+        )
         if center and t:
             self.transform(t)
         return self
@@ -508,12 +528,16 @@ class GeometricObject[T: (int, float)](ABC):
 
     def imirror_x(self, x: int = 0) -> Self:
         """Mirror self at an y-axis at position x."""
-        self.transform(kdb.Trans(2, True, 2 * x, 0))
+        self.transform(
+            kdb.Trans(kdb.Rotation.from_quarter_turns(2), True, kdb.Vector(2 * x, 0))
+        )
         return self
 
     def imirror_y(self, y: int = 0) -> Self:
         """Mirror self at an x-axis at position y."""
-        self.transform(kdb.Trans(0, True, 0, 2 * y))
+        self.transform(
+            kdb.Trans(kdb.Rotation.from_quarter_turns(0), True, kdb.Vector(0, 2 * y))
+        )
         return self
 
     @property
@@ -524,7 +548,9 @@ class GeometricObject[T: (int, float)](ABC):
     @dx.setter
     def dx(self, __val: float, /) -> None:
         """Moves self so that the bbox's center x-coordinate in um."""
-        self.transform(kdb.DTrans(__val - self.dbbox().center().x, 0))
+        self.transform(
+            kdb.DTrans(displacement=kdb.DVector(__val - self.dbbox().center().x, 0))
+        )
 
     @property
     def dy(self) -> float:
@@ -534,7 +560,9 @@ class GeometricObject[T: (int, float)](ABC):
     @dy.setter
     def dy(self, __val: float, /) -> None:
         """Moves self so that the bbox's center y-coordinate in um."""
-        self.transform(kdb.DTrans(0, __val - self.dbbox().center().y))
+        self.transform(
+            kdb.DTrans(displacement=kdb.DVector(0, __val - self.dbbox().center().y))
+        )
 
     @property
     def dxmin(self) -> float:
@@ -544,7 +572,9 @@ class GeometricObject[T: (int, float)](ABC):
     @dxmin.setter
     def dxmin(self, __val: float, /) -> None:
         """Moves self so that the bbox's left x-coordinate in um."""
-        self.transform(kdb.DTrans(__val - self.dbbox().left, 0))
+        self.transform(
+            kdb.DTrans(displacement=kdb.DVector(__val - self.dbbox().left, 0))
+        )
 
     @property
     def dymin(self) -> float:
@@ -554,7 +584,9 @@ class GeometricObject[T: (int, float)](ABC):
     @dymin.setter
     def dymin(self, __val: float, /) -> None:
         """Moves self so that the bbox's bottom y-coordinate in um."""
-        self.transform(kdb.DTrans(0, __val - self.dbbox().bottom))
+        self.transform(
+            kdb.DTrans(displacement=kdb.DVector(0, __val - self.dbbox().bottom))
+        )
 
     @property
     def dxmax(self) -> float:
@@ -564,7 +596,9 @@ class GeometricObject[T: (int, float)](ABC):
     @dxmax.setter
     def dxmax(self, __val: float, /) -> None:
         """Moves self so that the bbox's right x-coordinate in um."""
-        self.transform(kdb.DTrans(__val - self.dbbox().right, 0))
+        self.transform(
+            kdb.DTrans(displacement=kdb.DVector(__val - self.dbbox().right, 0))
+        )
 
     @property
     def dymax(self) -> float:
@@ -574,7 +608,9 @@ class GeometricObject[T: (int, float)](ABC):
     @dymax.setter
     def dymax(self, __val: float, /) -> None:
         """Moves self so that the bbox's top y-coordinate in um."""
-        self.transform(kdb.DTrans(0, __val - self.dbbox().top))
+        self.transform(
+            kdb.DTrans(displacement=kdb.DVector(0, __val - self.dbbox().top))
+        )
 
     @property
     def dxsize(self) -> float:
@@ -584,7 +620,9 @@ class GeometricObject[T: (int, float)](ABC):
     @dxsize.setter
     def dxsize(self, __val: float, /) -> None:
         """Sets the width of the bounding box in um."""
-        self.transform(kdb.DTrans(__val - self.dbbox().width(), 0))
+        self.transform(
+            kdb.DTrans(displacement=kdb.DVector(__val - self.dbbox().width(), 0))
+        )
 
     @property
     def dysize(self) -> float:
@@ -594,7 +632,9 @@ class GeometricObject[T: (int, float)](ABC):
     @dysize.setter
     def dysize(self, __val: float, /) -> None:
         """Sets the height of the bounding box in um."""
-        self.transform(kdb.DTrans(0, __val - self.dbbox().height()))
+        self.transform(
+            kdb.DTrans(displacement=kdb.DVector(0, __val - self.dbbox().height()))
+        )
 
     @property
     def dcenter(self) -> tuple[float, float]:
@@ -607,7 +647,9 @@ class GeometricObject[T: (int, float)](ABC):
         """Moves self so that the bbox's center coordinate in um."""
         self.transform(
             kdb.DTrans(
-                val[0] - self.dbbox().center().x, val[1] - self.dbbox().center().y
+                displacement=kdb.DVector(
+                    val[0] - self.dbbox().center().x, val[1] - self.dbbox().center().y
+                )
             )
         )
 
@@ -633,10 +675,15 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate
         """
         if destination is None:
-            self.transform(kdb.DCplxTrans(*origin))
+            self.transform(kdb.DCplxTrans(1, 0, False, kdb.DVector(*origin)))
         else:
             self.transform(
-                kdb.DCplxTrans(destination[0] - origin[0], destination[1] - origin[1])
+                kdb.DCplxTrans(
+                    1,
+                    0,
+                    False,
+                    kdb.DVector(destination[0] - origin[0], destination[1] - origin[1]),
+                )
             )
         return self
 
@@ -654,9 +701,11 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate
         """
         if destination is None:
-            self.transform(kdb.DCplxTrans(origin, 0))
+            self.transform(kdb.DCplxTrans(1, 0, False, kdb.DVector(origin, 0)))
         else:
-            self.transform(kdb.DCplxTrans(destination - origin, 0))
+            self.transform(
+                kdb.DCplxTrans(1, 0, False, kdb.DVector(destination - origin, 0))
+            )
         return self
 
     @overload
@@ -673,9 +722,11 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate
         """
         if destination is None:
-            self.transform(kdb.DCplxTrans(0, origin))
+            self.transform(kdb.DCplxTrans(1, 0, False, kdb.DVector(0, origin)))
         else:
-            self.transform(kdb.DCplxTrans(0, destination - origin))
+            self.transform(
+                kdb.DCplxTrans(1, 0, False, kdb.DVector(0, destination - origin))
+            )
         return self
 
     def drotate(self, angle: float, center: tuple[float, float] | None = None) -> Self:
@@ -687,9 +738,9 @@ class GeometricObject[T: (int, float)](ABC):
         """
         t: kdb.DCplxTrans | None = None
         if center:
-            t = kdb.DCplxTrans(*center)
+            t = kdb.DCplxTrans(1, 0, False, kdb.DVector(*center))
             self.transform(t.inverted())
-        self.transform(kdb.DCplxTrans(rot=angle, mirrx=False, x=0, y=0))
+        self.transform(kdb.DCplxTrans(1, angle, False, kdb.DVector(0, 0)))
         if center and t:
             self.transform(t)
         return self
@@ -720,12 +771,12 @@ class GeometricObject[T: (int, float)](ABC):
 
     def dmirror_x(self, x: float = 0) -> Self:
         """Mirror self at an y-axis at position x."""
-        self.transform(kdb.DCplxTrans(1, 180, True, 2 * x, 0))
+        self.transform(kdb.DCplxTrans(1, 180, True, kdb.DVector(2 * x, 0)))
         return self
 
     def dmirror_y(self, y: float = 0) -> Self:
         """Mirror self at an x-axis at position y."""
-        self.transform(kdb.DCplxTrans(1, 0, True, 0, 2 * y))
+        self.transform(kdb.DCplxTrans(1, 0, True, kdb.DVector(0, 2 * y)))
         return self
 
     @property

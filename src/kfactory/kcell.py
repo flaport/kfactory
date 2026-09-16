@@ -2139,7 +2139,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         if layer is None:
             box = self._base.kdb_cell.bbox()
         else:
-            box = self._base.kdb_cell.layer_bbox(self.kcl.layout.layer_by_index(layer))
+            box = self._base.kdb_cell.layer_bbox(layer)
         if self.vinsts:
             logger.warning(
                 "Bounding box of cell {!r} includes virtual instances and may be "

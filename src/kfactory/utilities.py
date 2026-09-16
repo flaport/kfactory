@@ -286,7 +286,10 @@ def as_png_data(
             layout_view.load_layer_props(str(layer_properties))
     elif c.kcl.technology_file is not None:
         layout_view.active_cellview().technology = c.kcl.technology.name
-    layout_view.active_cellview().cell = c.kdb_cell
+    if hasattr(layout_view, "select_cell"):
+        layout_view.select_cell(c.name)
+    else:
+        layout_view.active_cellview().cell = c.kdb_cell
     layout_view.max_hier()
     layout_view.resize(*resolution)
     layout_view.add_missing_layers()

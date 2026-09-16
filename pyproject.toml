@@ -20,7 +20,6 @@ dependencies = [
   "aenum>=3.1.17,<4",
   "cachetools>=7.1.8,<7.2",
   "kfnetlist>=0.3",
-  "klayout>=0.30.12,<0.31",
   "loguru>=0.7.3,<0.8",
   "pydantic>=2.13.5,<2.14",
   "pydantic-extra-types>=2.11.1,<2.12",
@@ -29,6 +28,7 @@ dependencies = [
   "rapidfuzz>=3.14.6,<4",
   "rectangle-packer>=2.1,<3",
   "requests>=2.34.2,<3",
+  "rlayout",
   "ruamel-yaml>=0.19.1,<0.20",
   "ruamel-yaml-string>=0.1.1,<0.2",
   "scipy>=1.18.1,<2",
@@ -223,3 +223,7 @@ version.regex = """  (?P<major>\\d+)
     \\.dev(?P<dev>\\d+)
   )?
   """
+
+[tool.uv.sources]
+rlayout = { path = "../../" }
+kfnetlist = { path = "../kfnetlist" }

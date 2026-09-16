@@ -125,7 +125,7 @@ class GeometricObject[T: (int, float)](ABC):
     def dbbox(self, layer: int | None = None) -> kdb.DBox: ...
 
     @abstractmethod
-    def _standard_trans(self) -> type[kdb.Trans | kdb.DCplxTrans]: ...
+    def _translation(self, x: T = 0, y: T = 0) -> kdb.Trans | kdb.DCplxTrans: ...
 
     @abstractmethod
     def transform(
@@ -142,7 +142,7 @@ class GeometricObject[T: (int, float)](ABC):
     @x.setter
     def x(self, __val: T, /) -> None:
         """Moves self so that the bbox's center x-coordinate."""
-        self.transform(self._standard_trans()(x=__val - self.bbox().center().x))  # ty:ignore[invalid-argument-type]
+        self.transform(self._translation(x=__val - self.bbox().center().x))  # ty:ignore[invalid-argument-type]
 
     @property
     def y(self) -> T:
@@ -152,7 +152,7 @@ class GeometricObject[T: (int, float)](ABC):
     @y.setter
     def y(self, __val: T, /) -> None:
         """Moves self so that the bbox's center y-coordinate."""
-        self.transform(self._standard_trans()(y=__val - self.bbox().center().y))  # ty:ignore[invalid-argument-type]
+        self.transform(self._translation(y=__val - self.bbox().center().y))  # ty:ignore[invalid-argument-type]
 
     @property
     def xmin(self) -> T:
@@ -162,7 +162,7 @@ class GeometricObject[T: (int, float)](ABC):
     @xmin.setter
     def xmin(self, __val: T, /) -> None:
         """Moves self so that the bbox's left edge x-coordinate."""
-        self.transform(self._standard_trans()(x=__val - self.bbox().left))  # ty:ignore[invalid-argument-type]
+        self.transform(self._translation(x=__val - self.bbox().left))  # ty:ignore[invalid-argument-type]
 
     @property
     def ymin(self) -> T:
@@ -172,7 +172,7 @@ class GeometricObject[T: (int, float)](ABC):
     @ymin.setter
     def ymin(self, __val: T, /) -> None:
         """Moves self so that the bbox's bottom edge y-coordinate."""
-        self.transform(self._standard_trans()(y=__val - self.bbox().bottom))  # ty:ignore[invalid-argument-type]
+        self.transform(self._translation(y=__val - self.bbox().bottom))  # ty:ignore[invalid-argument-type]
 
     @property
     def xmax(self) -> T:
@@ -182,7 +182,7 @@ class GeometricObject[T: (int, float)](ABC):
     @xmax.setter
     def xmax(self, __val: T, /) -> None:
         """Moves self so that the bbox's right edge x-coordinate."""
-        self.transform(self._standard_trans()(x=__val - self.bbox().right))  # ty:ignore[invalid-argument-type]
+        self.transform(self._translation(x=__val - self.bbox().right))  # ty:ignore[invalid-argument-type]
 
     @property
     def ymax(self) -> T:
@@ -192,7 +192,7 @@ class GeometricObject[T: (int, float)](ABC):
     @ymax.setter
     def ymax(self, __val: T, /) -> None:
         """Moves self so that the bbox's top edge y-coordinate."""
-        self.transform(self._standard_trans()(y=__val - self.bbox().top))  # ty:ignore[invalid-argument-type]
+        self.transform(self._translation(y=__val - self.bbox().top))  # ty:ignore[invalid-argument-type]
 
     @property
     def xsize(self) -> T:
@@ -202,7 +202,7 @@ class GeometricObject[T: (int, float)](ABC):
     @xsize.setter
     def xsize(self, __val: T, /) -> None:
         """Sets the width of the bounding box."""
-        self.transform(self._standard_trans()(x=__val - self.bbox().width()))  # ty:ignore[invalid-argument-type]
+        self.transform(self._translation(x=__val - self.bbox().width()))  # ty:ignore[invalid-argument-type]
 
     @property
     def ysize(self) -> T:
@@ -212,7 +212,7 @@ class GeometricObject[T: (int, float)](ABC):
     @ysize.setter
     def ysize(self, __val: T, /) -> None:
         """Sets the height of the bounding box."""
-        self.transform(self._standard_trans()(y=__val - self.bbox().height()))  # ty:ignore[invalid-argument-type]
+        self.transform(self._translation(y=__val - self.bbox().height()))  # ty:ignore[invalid-argument-type]
 
     @property
     def center(self) -> tuple[T, T]:
@@ -224,7 +224,7 @@ class GeometricObject[T: (int, float)](ABC):
     def center(self, __val: tuple[T, T], /) -> None:
         """Moves self so that the bbox's center coordinate."""
         self.transform(
-            self._standard_trans()(
+            self._translation(
                 __val[0] - self.bbox().center().x, __val[1] - self.bbox().center().y
             )  # ty:ignore[no-matching-overload]
         )
@@ -247,10 +247,10 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate [dbu]
         """
         if destination is None:
-            self.transform(self._standard_trans()(*origin))  # ty:ignore[no-matching-overload]
+            self.transform(self._translation(*origin))  # ty:ignore[no-matching-overload]
         else:
             self.transform(
-                self._standard_trans()(
+                self._translation(
                     destination[0] - origin[0], destination[1] - origin[1]
                 )  # ty:ignore[no-matching-overload]
             )
@@ -270,9 +270,9 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate [dbu]
         """
         if destination is None:
-            self.transform(self._standard_trans()(x=origin))  # ty:ignore[invalid-argument-type]
+            self.transform(self._translation(x=origin))  # ty:ignore[invalid-argument-type]
         else:
-            self.transform(self._standard_trans()(x=destination - origin))  # ty:ignore[invalid-argument-type]
+            self.transform(self._translation(x=destination - origin))  # ty:ignore[invalid-argument-type]
         return self
 
     @overload
@@ -289,9 +289,9 @@ class GeometricObject[T: (int, float)](ABC):
             destination: move origin so that it will land on this coordinate [dbu]
         """
         if destination is None:
-            self.transform(self._standard_trans()(y=origin))  # ty:ignore[invalid-argument-type]
+            self.transform(self._translation(y=origin))  # ty:ignore[invalid-argument-type]
         else:
-            self.transform(self._standard_trans()(y=destination - origin))  # ty:ignore[invalid-argument-type]
+            self.transform(self._translation(y=destination - origin))  # ty:ignore[invalid-argument-type]
         return self
 
     @abstractmethod
@@ -796,8 +796,8 @@ class DBUGeometricObject(GeometricObject[int], ABC):
     def bbox(self, layer: int | None = None) -> kdb.Box:
         return self.ibbox(layer)
 
-    def _standard_trans(self) -> type[kdb.Trans]:
-        return kdb.Trans
+    def _translation(self, x: int = 0, y: int = 0) -> kdb.Trans:
+        return kdb.Trans(displacement=kdb.Vector(x, y))
 
     def rotate(self, angle: int, center: tuple[int, int] | None = None) -> Self:
         return self.irotate(angle, center)
@@ -818,8 +818,8 @@ class UMGeometricObject(GeometricObject[float], ABC):
     def bbox(self, layer: int | None = None) -> kdb.DBox:
         return self.dbbox(layer)
 
-    def _standard_trans(self) -> type[kdb.DCplxTrans]:
-        return kdb.DCplxTrans
+    def _translation(self, x: float = 0, y: float = 0) -> kdb.DCplxTrans:
+        return kdb.DCplxTrans(1, 0, False, kdb.DVector(x, y))
 
     def rotate(self, angle: float, center: tuple[float, float] | None = None) -> Self:
         return self.drotate(angle, center)

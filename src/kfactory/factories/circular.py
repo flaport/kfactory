@@ -187,13 +187,13 @@ def bend_circular_factory(
 
         c.create_port(
             name="o1",
-            trans=kdb.Trans(2, False, 0, 0),
+            trans=kdb.Trans(kdb.Rotation.R180),
             cross_section=xs,
             port_type=port_type,
         )
         c.create_port(
             name="o2",
-            dcplx_trans=kdb.DCplxTrans(1, angle, False, backbone[-1].to_v()),
+            dcplx_trans=kdb.DCplxTrans(1, angle, False, backbone[-1].to_vector()),
             cross_section=xs,
             port_type=port_type,
         )

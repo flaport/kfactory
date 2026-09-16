@@ -140,13 +140,15 @@ class ProtoTInstance[T: (int, float)](ProtoInstance[T]):
         prop = self.instance.property(PROPID.NAME)
         if prop is not None:
             return str(prop)
-        name = f"{self.cell.name}_{self.trans.disp.x}_{self.trans.disp.y}"
+        name = (
+            f"{self.cell.name}_{self.trans.displacement.x}_{self.trans.displacement.y}"
+        )
         if self.cplx_trans.angle != 0:
             if self.cplx_trans.angle.is_integer():
                 name += f"_A{int(self.cplx_trans.angle)}"
             else:
                 name += f"_A{str(self.cplx_trans.angle).replace('.', 'p')}"
-        if self.cplx_trans.is_mirror():
+        if self.cplx_trans.mirror_x:
             name += "_M"
         return name
 
@@ -598,7 +600,9 @@ class Instance(ProtoTInstance[int], DBUGeometricObject):
     def __init__(self, kcl: KCLayout, instance: kdb.Instance) -> None:
         """Create an instance from a KLayout Instance."""
         self.kcl = kcl
-        self._instance = instance.instance if isinstance(instance, ProtoTInstance) else instance
+        self._instance = (
+            instance.instance if isinstance(instance, ProtoTInstance) else instance
+        )
 
     @functools.cached_property
     def ports(self) -> InstancePorts:
@@ -683,7 +687,9 @@ class DInstance(ProtoTInstance[float], UMGeometricObject):
     def __init__(self, kcl: KCLayout, instance: kdb.Instance) -> None:
         """Create an instance from a KLayout Instance."""
         self.kcl = kcl
-        self._instance = instance.instance if isinstance(instance, ProtoTInstance) else instance
+        self._instance = (
+            instance.instance if isinstance(instance, ProtoTInstance) else instance
+        )
 
     @functools.cached_property
     def ports(self) -> DInstancePorts:

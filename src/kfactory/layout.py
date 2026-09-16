@@ -2473,18 +2473,18 @@ class KCLayout(
         if config.write_kfactory_settings:
             for name, setting in self.settings.model_dump().items():
                 self.add_meta_info(
-                    kdb.LayoutMetaInfo(f"kfactory:settings:{name}", setting, None, True)
+                    kdb.LayoutMetaInfo(f"kfactory:settings:{name}", setting, "", True)
                 )
         for name, info in self.info.model_dump().items():
             self.add_meta_info(
-                kdb.LayoutMetaInfo(f"kfactory:info:{name}", info, None, True)
+                kdb.LayoutMetaInfo(f"kfactory:info:{name}", info, "", True)
             )
         for enclosure in self.layer_enclosures.root.values():
             self.add_meta_info(
                 kdb.LayoutMetaInfo(
                     f"kfactory:layer_enclosure:{enclosure.name}",
                     enclosure.model_dump(),
-                    None,
+                    "",
                     True,
                 )
             )
@@ -2509,7 +2509,7 @@ class KCLayout(
                             "radius_min": xs.radius_min,
                             "bbox_sections": xs.bbox_sections,
                         },
-                        None,
+                        "",
                         True,
                     )
                 )
@@ -2527,7 +2527,7 @@ class KCLayout(
                                 else {}
                             ),
                         },
-                        None,
+                        "",
                         True,
                     )
                 )

@@ -1804,7 +1804,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                         "info": port.info.model_dump(),
                     }
                     self.add_meta_info(
-                        kdb.LayoutMetaInfo(f"kfactory:ports:{i}", meta_info, None, True)
+                        kdb.LayoutMetaInfo(f"kfactory:ports:{i}", meta_info, "", True)
                     )
                 else:
                     meta_info = {
@@ -1815,7 +1815,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                         "info": port.info.model_dump(),
                     }
                     self.add_meta_info(
-                        kdb.LayoutMetaInfo(f"kfactory:ports:{i}", meta_info, None, True)
+                        kdb.LayoutMetaInfo(f"kfactory:ports:{i}", meta_info, "", True)
                     )
             for i, pin in enumerate(self.pins):
                 meta_info = {
@@ -1825,25 +1825,23 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                     "ports": [self.base.ports.index(port.base) for port in pin.ports],
                 }
                 self.add_meta_info(
-                    kdb.LayoutMetaInfo(f"kfactory:pins:{i}", meta_info, None, True)
+                    kdb.LayoutMetaInfo(f"kfactory:pins:{i}", meta_info, "", True)
                 )
             settings = self.settings.model_dump()
             if settings:
                 self.add_meta_info(
-                    kdb.LayoutMetaInfo("kfactory:settings", settings, None, True)
+                    kdb.LayoutMetaInfo("kfactory:settings", settings, "", True)
                 )
             info = self.info.model_dump()
             if info:
-                self.add_meta_info(
-                    kdb.LayoutMetaInfo("kfactory:info", info, None, True)
-                )
+                self.add_meta_info(kdb.LayoutMetaInfo("kfactory:info", info, "", True))
             settings_units = self.settings_units.model_dump()
             if settings_units:
                 self.add_meta_info(
                     kdb.LayoutMetaInfo(
                         "kfactory:settings_units",
                         settings_units,
-                        None,
+                        "",
                         True,
                     )
                 )
@@ -1851,13 +1849,13 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             if self.function_name is not None:
                 self.add_meta_info(
                     kdb.LayoutMetaInfo(
-                        "kfactory:function_name", self.function_name, None, True
+                        "kfactory:function_name", self.function_name, "", True
                     )
                 )
 
             if self.basename is not None:
                 self.add_meta_info(
-                    kdb.LayoutMetaInfo("kfactory:basename", self.basename, None, True)
+                    kdb.LayoutMetaInfo("kfactory:basename", self.basename, "", True)
                 )
 
             # Reading inst.info can create an empty entry; do not persist it.
@@ -1871,7 +1869,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                     kdb.LayoutMetaInfo(
                         "kfactory:instance_infos",
                         instance_infos,
-                        None,
+                        "",
                         True,
                     )
                 )

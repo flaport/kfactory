@@ -111,7 +111,9 @@ class ManhattanRoute(BaseModel, arbitrary_types_allowed=True):
     taper_length: dbu = 0
     """Length of backbone without the bends."""
     length_straights: dbu = 0
-    polygons: dict[kdb.LayerInfo, list[kdb.Polygon]] = Field(default_factory=dict)
+    polygons: dict[
+        kdb.LayerInfo, list[kdb.Polygon | kdb.PolygonWithProperties]
+    ] = Field(default_factory=dict)
     length_function: LengthFunction = Field(default_factory=get_length_from_area)
 
     @property

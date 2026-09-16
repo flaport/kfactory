@@ -91,7 +91,7 @@ def path_pts_to_polygon(
 ) -> kdb.DPolygon:
     """Convert a list of points to a polygon."""
     pts_bot.reverse()
-    return kdb.DPolygon(pts_top + pts_bot)
+    return kdb.DPolygon.from_points(pts_top + pts_bot)
 
 
 def _extrude_path_band_points(
@@ -127,13 +127,13 @@ def _extrude_path_band_points(
 
     p_start = path[0]
     p_end = path[-1]
-    start_trans = kdb.DCplxTrans(1, start_angle, False, p_start.x, p_start.y)
-    end_trans = kdb.DCplxTrans(1, end_angle, False, p_end.x, p_end.y)
+    start_trans = kdb.DCplxTrans(1, start_angle, False, kdb.DVector(p_start.x, p_start.y))
+    end_trans = kdb.DCplxTrans(1, end_angle, False, kdb.DVector(p_end.x, p_end.y))
 
-    top_vector = kdb.DCplxTrans(kdb.DVector(0, hi))
-    bot_vector = kdb.DCplxTrans(kdb.DVector(0, lo))
-    vector_top = [start_trans * top_vector]
-    vector_bot = [start_trans * bot_vector]
+    top_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, hi))
+    bot_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, lo))
+    vector_top = [top_vector.then(start_trans)]
+    vector_bot = [bot_vector.then(start_trans)]
 
     p_old = path[0]
     p = path[1]
@@ -142,16 +142,16 @@ def _extrude_path_band_points(
         p_new = point
         v = p_new - p_old
         angle = np.rad2deg(np.arctan2(v.y, v.x))
-        transformation = kdb.DCplxTrans(1, angle, False, p.x, p.y)
-        vector_top.append(transformation * top_vector)
-        vector_bot.append(transformation * bot_vector)
+        transformation = kdb.DCplxTrans(1, angle, False, kdb.DVector(p.x, p.y))
+        vector_top.append(top_vector.then(transformation))
+        vector_bot.append(bot_vector.then(transformation))
         p_old = p
         p = p_new
 
-    vector_top.append(end_trans * top_vector)
-    vector_bot.append(end_trans * bot_vector)
+    vector_top.append(top_vector.then(end_trans))
+    vector_bot.append(bot_vector.then(end_trans))
 
-    return [v.disp.to_p() for v in vector_top], [v.disp.to_p() for v in vector_bot]
+    return [v.displacement.to_point() for v in vector_top], [v.displacement.to_point() for v in vector_bot]
 
 
 def extrude_path_points(
@@ -219,7 +219,7 @@ def extrude_path(
                     end_angle,
                 )
             )
-            r = kdb.Region(target.kcl.to_dbu(path_))
+            r = kdb.Region.from_polygon(target.kcl.to_dbu(path_))
             if section.d_min is not None:
                 path_ = path_pts_to_polygon(
                     *extrude_path_points(
@@ -229,11 +229,11 @@ def extrude_path(
                         end_angle,
                     )
                 )
-                r -= kdb.Region(target.kcl.to_dbu(path_))
-            reg.insert(r)
+                r -= kdb.Region.from_polygon(target.kcl.to_dbu(path_))
+            reg = reg.concatenated(r)
             if _layer == layer and i == j:
                 ret_path = path_
-        target.shapes(target.kcl.layer(_layer)).insert(reg.merge())
+        target.shapes(target.kcl.layer(_layer)).insert_region(reg.merged())
     return ret_path
 
 
@@ -293,7 +293,7 @@ def extrude_path_cross_section(
                 *_extrude_path_band_points(path, lo, hi, start_angle, end_angle)
             )
             reg.insert(target.kcl.to_dbu(polygon))
-        target.shapes(target.kcl.layer(_layer)).insert(reg.merge())
+        target.shapes(target.kcl.layer(_layer)).insert_region(reg.merged())
 
 
 def extrude_path_dynamic_points(
@@ -323,51 +323,51 @@ def extrude_path_dynamic_points(
     p_start = path[0]
     p_end = path[-1]
 
-    start_trans = kdb.DCplxTrans(1, start_angle, False, p_start.x, p_start.y)
-    end_trans = kdb.DCplxTrans(1, end_angle, False, p_end.x, p_end.y)
+    start_trans = kdb.DCplxTrans(1, start_angle, False, kdb.DVector(p_start.x, p_start.y))
+    end_trans = kdb.DCplxTrans(1, end_angle, False, kdb.DVector(p_end.x, p_end.y))
 
     if callable(widths):
-        length = sum(((p2 - p1).abs() for p2, p1 in itertools.pairwise(path)))
+        length = sum(((p2 - p1).length() for p2, p1 in itertools.pairwise(path)))
         z: float = 0
-        ref_vector = kdb.DCplxTrans(kdb.DVector(0, widths(z / length) / 2))  # ty:ignore[unsupported-operator]
-        vector_top = [start_trans * ref_vector]
-        vector_bot = [start_trans * kdb.DCplxTrans.R180 * ref_vector]
+        ref_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, widths(z / length) / 2))  # ty:ignore[unsupported-operator]
+        vector_top = [ref_vector.then(start_trans)]
+        vector_bot = [ref_vector.then(kdb.DCplxTrans.R180).then(start_trans)]
         p_old = path[0]
         p = path[1]
-        z += (p - p_old).abs()
+        z += (p - p_old).length()
         for point in path[2:]:
-            ref_vector = kdb.DCplxTrans(kdb.DVector(0, widths(z / length) / 2))  # ty:ignore[unsupported-operator]
+            ref_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, widths(z / length) / 2))  # ty:ignore[unsupported-operator]
             p_new = point
             v = p_new - p_old
             angle = np.rad2deg(np.arctan2(v.y, v.x))
-            transformation = kdb.DCplxTrans(1, angle, False, p.x, p.y)
-            vector_top.append(transformation * ref_vector)
-            vector_bot.append(transformation * kdb.DCplxTrans.R180 * ref_vector)
-            z += (p_new - p).abs()
+            transformation = kdb.DCplxTrans(1, angle, False, kdb.DVector(p.x, p.y))
+            vector_top.append(ref_vector.then(transformation))
+            vector_bot.append(ref_vector.then(kdb.DCplxTrans.R180).then(transformation))
+            z += (p_new - p).length()
             p_old = p
             p = p_new
-        ref_vector = kdb.DCplxTrans(kdb.DVector(0, widths(z / length) / 2))  # ty:ignore[unsupported-operator]
+        ref_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, widths(z / length) / 2))  # ty:ignore[unsupported-operator]
     else:
-        ref_vector = kdb.DCplxTrans(kdb.DVector(0, widths[0] / 2))
-        vector_top = [start_trans * ref_vector]
-        vector_bot = [start_trans * kdb.DCplxTrans.R180 * ref_vector]
+        ref_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, widths[0] / 2))
+        vector_top = [ref_vector.then(start_trans)]
+        vector_bot = [ref_vector.then(kdb.DCplxTrans.R180).then(start_trans)]
         p_old = path[0]
         p = path[1]
         for point, w in zip(path[2:], widths[1:-1], strict=False):
-            ref_vector = kdb.DCplxTrans(kdb.DVector(0, w / 2))
+            ref_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, w / 2))
             p_new = point
             v = p_new - p_old
             angle = np.rad2deg(np.arctan2(v.y, v.x))
-            transformation = kdb.DCplxTrans(1, angle, False, p.x, p.y)
-            vector_top.append(transformation * ref_vector)
-            vector_bot.append(transformation * kdb.DCplxTrans.R180 * ref_vector)
+            transformation = kdb.DCplxTrans(1, angle, False, kdb.DVector(p.x, p.y))
+            vector_top.append(ref_vector.then(transformation))
+            vector_bot.append(ref_vector.then(kdb.DCplxTrans.R180).then(transformation))
             p_old = p
             p = p_new
-        ref_vector = kdb.DCplxTrans(kdb.DVector(0, widths[-1] / 2))
-    vector_top.append(end_trans * ref_vector)
-    vector_bot.append(end_trans * kdb.DCplxTrans.R180 * ref_vector)
+        ref_vector = kdb.DCplxTrans(1, 0, False, kdb.DVector(0, widths[-1] / 2))
+    vector_top.append(ref_vector.then(end_trans))
+    vector_bot.append(ref_vector.then(kdb.DCplxTrans.R180).then(end_trans))
 
-    return [v.disp.to_p() for v in vector_top], [v.disp.to_p() for v in vector_bot]
+    return [v.displacement.to_point() for v in vector_top], [v.displacement.to_point() for v in vector_bot]
 
 
 def extrude_path_dynamic(
@@ -415,7 +415,7 @@ def extrude_path_dynamic(
                     assert section.d_max is not None
                     return widths(x) + 2 * section.d_max * target.kcl.layout.dbu
 
-                r = kdb.Region(
+                r = kdb.Region.from_polygon(
                     target.kcl.to_dbu(
                         path_pts_to_polygon(
                             *extrude_path_dynamic_points(
@@ -433,7 +433,7 @@ def extrude_path_dynamic(
                         assert section.d_min is not None
                         return widths(x) + 2 * section.d_min * target.kcl.layout.dbu
 
-                    r -= kdb.Region(
+                    r -= kdb.Region.from_polygon(
                         target.kcl.to_dbu(
                             path_pts_to_polygon(
                                 *extrude_path_dynamic_points(
@@ -445,15 +445,15 @@ def extrude_path_dynamic(
                             )
                         )
                     )
-                reg.insert(r)
-            target.shapes(target.kcl.layer(layer_)).insert(reg.merge())
+                reg = reg.concatenated(r)
+            target.shapes(target.kcl.layer(layer_)).insert_region(reg.merged())
 
     else:
         for layer_, layer_sec in layer_list.items():
             reg = kdb.Region()
             for section in layer_sec.sections:
                 max_widths = [w + 2 * section.d_max * target.kcl.dbu for w in widths]  # ty:ignore[not-iterable]
-                r = kdb.Region(
+                r = kdb.Region.from_polygon(
                     target.kcl.to_dbu(
                         path_pts_to_polygon(
                             *extrude_path_dynamic_points(
@@ -470,7 +470,7 @@ def extrude_path_dynamic(
                         w + 2 * section.d_min * target.kcl.dbu
                         for w in widths  # ty:ignore[not-iterable]
                     ]
-                    r -= kdb.Region(
+                    r -= kdb.Region.from_polygon(
                         target.kcl.to_dbu(
                             path_pts_to_polygon(
                                 *extrude_path_dynamic_points(
@@ -482,8 +482,8 @@ def extrude_path_dynamic(
                             )
                         )
                     )
-                reg.insert(r)
-            target.shapes(target.kcl.layer(layer_)).insert(reg.merge())
+                reg = reg.concatenated(r)
+            target.shapes(target.kcl.layer(layer_)).insert_region(reg.merged())
 
 
 class Section(BaseModel):

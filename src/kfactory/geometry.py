@@ -516,12 +516,12 @@ class GeometricObject[T: (int, float)](ABC):
 
         v = kdb.DVector(-mirror_v.y, mirror_v.x)
 
-        dedge_disp = kdb.DEdge(disp.to_p(), (v + disp).to_p())
+        dedge_disp = kdb.DEdge(disp.to_point(), (v + disp).to_point())
 
         cross_point = dedge.cut_point(dedge_disp)
 
         self.transform(
-            kdb.DCplxTrans(1.0, angle, True, (cross_point.to_v() - disp) * 2)
+            kdb.DCplxTrans(1.0, angle, True, (cross_point.to_vector() - disp) * 2)
         )
 
         return self
@@ -759,12 +759,12 @@ class GeometricObject[T: (int, float)](ABC):
         v = mirror_v
         v = kdb.DVector(-v.y, v.x)
 
-        dedge_disp = kdb.DEdge(disp.to_p(), (v + disp).to_p())
+        dedge_disp = kdb.DEdge(disp.to_point(), (v + disp).to_point())
 
         cross_point = dedge.cut_point(dedge_disp)
 
         self.transform(
-            kdb.DCplxTrans(1.0, angle, True, (cross_point.to_v() - disp) * 2)
+            kdb.DCplxTrans(1.0, angle, True, (cross_point.to_vector() - disp) * 2)
         )
 
         return self

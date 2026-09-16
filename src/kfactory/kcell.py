@@ -2143,7 +2143,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         if layer is None:
             box = self._base.kdb_cell.bbox()
         else:
-            box = self._base.kdb_cell.bbox(layer)
+            box = self._base.kdb_cell.layer_bbox(self.kcl.layout.layer_by_index(layer))
         if self.vinsts:
             logger.warning(
                 "Bounding box of cell {!r} includes virtual instances and may be "
@@ -2151,7 +2151,9 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                 self.name,
             )
             for vinst in self.vinsts:
-                box += vinst.ibbox(layer)
+                bounds = vinst.ibbox(layer)
+                if bounds is not None:
+                    box = bounds if box is None else box.union(bounds)
         return box
 
     def dbbox(self, layer: int | None = None) -> kdb.DBox:
@@ -2164,7 +2166,8 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             bounds = self._base.kdb_cell.bbox()
             box = bounds.to_dtype(self.kcl.dbu) if bounds is not None else None
         else:
-            box = self._base.kdb_cell.dbbox(layer)
+            bounds = self._base.kdb_cell.layer_bbox(self.kcl.layout.layer_by_index(layer))
+            box = bounds.to_dtype(self.kcl.dbu) if bounds is not None else None
         if self.vinsts:
             logger.warning(
                 "Bounding box of cell {!r} includes virtual instances and may be "
@@ -2172,7 +2175,9 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                 self.name,
             )
             for vinst in self.vinsts:
-                box += vinst.dbbox(layer)
+                bounds = vinst.dbbox(layer)
+                if bounds is not None:
+                    box = bounds if box is None else box.union(bounds)
         return box
 
     def l2n_ports(
@@ -3351,7 +3356,8 @@ class VKCell(ProtoKCell[float, TVCell], UMGeometricObject, DCreatePort):
                 self._base.name = name
 
     def ibbox(self, layer: int | None = None) -> kdb.Box:
-        return self.dbbox(layer).to_itype(self.kcl.dbu)
+        bounds = self.dbbox(layer)
+        return bounds.to_itype(self.kcl.dbu) if bounds is not None else None
 
     def transform(
         self,
@@ -3393,15 +3399,19 @@ class VKCell(ProtoKCell[float, TVCell], UMGeometricObject, DCreatePort):
         layers_ = set(self.shapes().keys())
 
         layers = layers_ if layer is None else {layer} & layers_
-        box = kdb.DBox()
+        box = None
         for layer_ in layers:
             layer__ = layer_
             if isinstance(layer__, LayerEnum):
                 layer__ = layer__.layout.layer(layer__.layer, layer__.datatype)
-            box += self.shapes(layer__).bbox()
+            bounds = self.shapes(layer__).bbox()
+            if bounds is not None:
+                box = bounds if box is None else box.union(bounds)
 
         for vinst in self.insts:
-            box += vinst.dbbox(layer)
+            bounds = vinst.dbbox(layer)
+            if bounds is not None:
+                box = bounds if box is None else box.union(bounds)
 
         return box
 

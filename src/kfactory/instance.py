@@ -454,27 +454,22 @@ class ProtoTInstance[T: (int, float)](ProtoInstance[T]):
             match (use_mirror, use_angle):
                 case True, True:
                     dcplx_trans = (
-                        op.dcplx_trans * dconn_trans * p.dcplx_trans.inverted()
+                        p.dcplx_trans.inverted().then(dconn_trans).then(op.dcplx_trans)
                     )
                 case False, True:
                     dconn_trans = (
                         kdb.DCplxTrans.M90
-                        if mirror ^ self.dcplx_trans.mirror
+                        if mirror ^ self.dcplx_trans.mirror_x
                         else kdb.DCplxTrans.R180
                     )
-                    op_dcplx_trans = op.dcplx_trans
-                    op_dcplx_trans.mirror = False
+                    op_dcplx_trans = op.dcplx_trans.with_mirror_x(False)
                     dcplx_trans = (
-                        op_dcplx_trans * dconn_trans * p.dcplx_trans.inverted()
+                        p.dcplx_trans.inverted().then(dconn_trans).then(op_dcplx_trans)
                     )
                 case False, False:
-                    dcplx_trans = kdb.DCplxTrans(
-                        op.dcplx_trans.disp - p.dcplx_trans.disp
-                    )
+                    dcplx_trans = kdb.DCplxTrans(1, 0, False, op.dcplx_trans.displacement - p.dcplx_trans.displacement)
                 case True, False:
-                    dcplx_trans = kdb.DCplxTrans(
-                        op.dcplx_trans.disp - p.dcplx_trans.disp
-                    )
+                    dcplx_trans = kdb.DCplxTrans(1, 0, False, op.dcplx_trans.displacement - p.dcplx_trans.displacement)
                 case _:
                     raise NotImplementedError("This shouldn't happen")
             self._instance.dcplx_trans = dcplx_trans
@@ -493,18 +488,17 @@ class ProtoTInstance[T: (int, float)](ProtoInstance[T]):
             conn_trans = kdb.Trans.M90 if mirror else kdb.Trans.R180
             match (use_mirror, use_angle):
                 case True, True:
-                    trans = op.trans * conn_trans * p.trans.inverted()
+                    trans = p.trans.inverted().then(conn_trans).then(op.trans)
                 case False, True:
                     conn_trans = (
-                        kdb.Trans.M90 if mirror ^ self.trans.mirror else kdb.Trans.R180
+                        kdb.Trans.M90 if mirror ^ self.trans.mirror_x else kdb.Trans.R180
                     )
-                    op_trans = op.copy().trans
-                    op_trans.mirror = False
-                    trans = op_trans * conn_trans * p.trans.inverted()
+                    op_trans = op.copy().trans.with_mirror_x(False)
+                    trans = p.trans.inverted().then(conn_trans).then(op_trans)
                 case False, False:
-                    trans = kdb.Trans(op.trans.disp - p.trans.disp)
+                    trans = kdb.Trans(displacement=op.trans.displacement - p.trans.displacement)
                 case True, False:
-                    trans = kdb.Trans(op.trans.disp - p.trans.disp)
+                    trans = kdb.Trans(displacement=op.trans.displacement - p.trans.displacement)
                 case _:
                     raise NotImplementedError("This shouldn't happen")
 
@@ -808,17 +802,20 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
         return self.cell.name
 
     def ibbox(self, layer: int | LayerEnum | None = None) -> kdb.Box:
-        return self.dbbox(layer).to_itype(self.kcl.dbu)
+        bounds = self.dbbox(layer)
+        return bounds.to_itype(self.kcl.dbu) if bounds is not None else None
 
     def dbbox(self, layer: int | LayerEnum | None = None) -> kdb.DBox:
         cell_bb = self.cell.dbbox(layer)
+        if cell_bb is None:
+            return None
         na_ = self.na - 1
         nb_ = self.nb - 1
         if na_ or nb_:
-            return cell_bb.transformed(self.trans) + cell_bb.transformed(
-                self.trans * kdb.DCplxTrans(na_ * self.a + nb_ * self.b)
-            )
-        return cell_bb.transformed(self.trans)
+            return cell_bb.transformed_complex(self.trans).union(cell_bb.transformed_complex(
+                kdb.DCplxTrans(1, 0, False, na_ * self.a + nb_ * self.b).then(self.trans)
+            ))
+        return cell_bb.transformed_complex(self.trans)
 
     def __getitem__(
         self, key: int | str | tuple[int | str | None, int, int] | None
@@ -867,7 +864,7 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
             trans = kdb.DTrans().to_complex()
 
         if isinstance(self.cell, VKCell):
-            trans_ = trans * self.trans
+            trans_ = self.trans.then(trans)
             base_trans = kdb.DCplxTrans(
                 kdb.DCplxTrans(
                     kdb.ICplxTrans(trans_, cell.kcl.dbu)
@@ -928,7 +925,7 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
             return Instance(kcl=self.cell.kcl, instance=inst_.instance)
 
         assert isinstance(self.cell, ProtoTKCell)
-        trans_ = trans * self.trans
+        trans_ = self.trans.then(trans)
         base_trans = kdb.DCplxTrans(
             kdb.ICplxTrans(trans_, cell.kcl.dbu).s_trans().to_dtype(cell.kcl.dbu)
         )
@@ -1005,7 +1002,7 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
 
         if trans is None:
             trans = kdb.DTrans().to_complex()
-        trans_ = trans * self.trans
+        trans_ = self.trans.then(trans)
 
         if isinstance(self.cell, VKCell):
             for layer, shapes in self.cell.shapes().items():
@@ -1168,20 +1165,19 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
         dconn_trans = kdb.DCplxTrans.M90 if mirror else kdb.DCplxTrans.R180
         match (use_mirror, use_angle):
             case True, True:
-                dcplx_trans = op.dcplx_trans * dconn_trans * p.dcplx_trans.inverted()
+                dcplx_trans = p.dcplx_trans.inverted().then(dconn_trans).then(op.dcplx_trans)
             case False, True:
                 dconn_trans = (
                     kdb.DCplxTrans.M90
-                    if mirror ^ self.dcplx_trans.mirror
+                    if mirror ^ self.dcplx_trans.mirror_x
                     else kdb.DCplxTrans.R180
                 )
-                opt = op.dcplx_trans
-                opt.mirror = False
-                dcplx_trans = opt * dconn_trans * p.dcplx_trans.inverted()
+                opt = op.dcplx_trans.with_mirror_x(False)
+                dcplx_trans = p.dcplx_trans.inverted().then(dconn_trans).then(opt)
             case False, False:
-                dcplx_trans = kdb.DCplxTrans(op.dcplx_trans.disp - p.dcplx_trans.disp)
+                dcplx_trans = kdb.DCplxTrans(1, 0, False, op.dcplx_trans.displacement - p.dcplx_trans.displacement)
             case True, False:
-                dcplx_trans = kdb.DCplxTrans(op.dcplx_trans.disp - p.dcplx_trans.disp)
+                dcplx_trans = kdb.DCplxTrans(1, 0, False, op.dcplx_trans.displacement - p.dcplx_trans.displacement)
             case _:
                 raise NotImplementedError("This shouldn't happen")
 
@@ -1206,7 +1202,11 @@ class VInstance(ProtoInstance[float], UMGeometricObject):
     ) -> None:
         if isinstance(trans, kdb.Trans):
             trans = trans.to_dtype(self.kcl.dbu)
-        self.trans = kdb.DCplxTrans(trans) * self.trans
+        if isinstance(trans, kdb.DTrans):
+            trans = trans.to_complex()
+        elif isinstance(trans, kdb.ICplxTrans):
+            trans = trans.to_dtype(1.0)
+        self.trans = self.trans.then(trans)
 
     def dup(self) -> VInstance:
         inst = VInstance(

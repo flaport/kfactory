@@ -174,12 +174,10 @@ class ProtoTInstancePorts[T: (int, float)](
             p = self.cell_ports[key]
             if not self.instance.is_complex():
                 return p.copy(
-                    kdb.Trans(self.instance.a * i_a + self.instance.b * i_b)
-                    * self.instance.trans
+                    self.instance.trans.then(kdb.Trans(displacement=self.instance.a * i_a + self.instance.b * i_b))
                 )
             return p.copy(
-                kdb.DCplxTrans(self.instance.da * i_a + self.instance.db * i_b)
-                * self.instance.dcplx_trans
+                self.instance.dcplx_trans.then(kdb.DCplxTrans(1, 0, False, self.instance.da * i_a + self.instance.db * i_b))
             )
 
     @property
@@ -196,8 +194,7 @@ class ProtoTInstancePorts[T: (int, float)](
         elif not self.instance.is_complex():
             yield from (
                 p.copy(
-                    kdb.Trans(self.instance.a * i_a + self.instance.b * i_b)
-                    * self.instance.trans
+                    self.instance.trans.then(kdb.Trans(displacement=self.instance.a * i_a + self.instance.b * i_b))
                 )
                 for i_a in range(self.instance.na)
                 for i_b in range(self.instance.nb)
@@ -206,8 +203,7 @@ class ProtoTInstancePorts[T: (int, float)](
         else:
             yield from (
                 p.copy(
-                    kdb.DCplxTrans(self.instance.da * i_a + self.instance.db * i_b)
-                    * self.instance.dcplx_trans
+                    self.instance.dcplx_trans.then(kdb.DCplxTrans(1, 0, False, self.instance.da * i_a + self.instance.db * i_b))
                 )
                 for i_a in range(self.instance.na)
                 for i_b in range(self.instance.nb)
@@ -233,8 +229,7 @@ class ProtoTInstancePorts[T: (int, float)](
                     i_a,
                     i_b,
                     p.copy(
-                        kdb.Trans(self.instance.a * i_a + self.instance.b * i_b)
-                        * self.instance.trans
+                        self.instance.trans.then(kdb.Trans(displacement=self.instance.a * i_a + self.instance.b * i_b))
                     ),
                 )
                 for i_a in range(self.instance.na)
@@ -247,8 +242,7 @@ class ProtoTInstancePorts[T: (int, float)](
                     i_a,
                     i_b,
                     p.copy(
-                        kdb.DCplxTrans(self.instance.da * i_a + self.instance.db * i_b)
-                        * self.instance.dcplx_trans
+                        self.instance.dcplx_trans.then(kdb.DCplxTrans(1, 0, False, self.instance.da * i_a + self.instance.db * i_b))
                     ),
                 )
                 for i_a in range(self.instance.na)
@@ -415,11 +409,10 @@ class VInstancePorts(ProtoInstancePorts[float, VInstance]):
     ) -> DPort:
         if isinstance(key, tuple):
             return self.cell_ports[key[0]].copy(
-                kdb.DCplxTrans(
-                    (self.instance.na - 1) * self.instance.a
+                self.instance.trans.then(kdb.DCplxTrans(
+                    1, 0, False, (self.instance.na - 1) * self.instance.a
                     + (self.instance.nb - 1) * self.instance.b
-                )
-                * self.instance.trans
+                ))
             )
         return self.cell_ports[key].copy(self.instance.trans)
 

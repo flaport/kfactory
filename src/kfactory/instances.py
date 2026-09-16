@@ -76,7 +76,7 @@ class ProtoTInstances[T: (int, float)](ProtoInstances[T, ProtoTInstance[T]], ABC
 
     @property
     def _insts(self) -> Iterator[kdb.Instance]:
-        yield from self._tkcell.kdb_cell.instances()
+        yield from self._tkcell.kdb_cell.live_instances()
 
     def _get_inst(self, item: kdb.Instance | str) -> kdb.Instance:
         try:

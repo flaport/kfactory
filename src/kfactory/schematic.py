@@ -73,7 +73,7 @@ from .typings import KC, JSONSerializable, dbu, um
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from klayout import rdb
+    from rlayout import rdb
 
     from .cross_section import (
         AsymmetricCrossSection,
@@ -883,7 +883,7 @@ class Constraint(BaseModel, ABC, arbitrary_types_allowed=True):
         The default implementation highlights route backbones. Override for
         constraint-specific visualisation.
         """
-        from klayout import rdb as _rdb
+        from rlayout import rdb as _rdb
 
         db = _rdb.ReportDatabase(f"{self.__class__.__name__} Constraint Failure")
         cat = db.create_category("Failing Routes")
@@ -966,7 +966,7 @@ class PathLengthMatch(Constraint):
         instances: dict[str, Instance],
         routes: dict[str, list[ManhattanRoute]],
     ) -> rdb.ReportDatabase:
-        from klayout import rdb as _rdb
+        from rlayout import rdb as _rdb
 
         all_routes = [r for name in self.route_names for r in routes.get(name, [])]
         lengths = [r.length for r in all_routes] if all_routes else []

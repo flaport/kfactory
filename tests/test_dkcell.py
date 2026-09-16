@@ -1,4 +1,4 @@
-import klayout.db as kdb
+import rlayout.db as kdb
 import pytest
 
 import kfactory as kf

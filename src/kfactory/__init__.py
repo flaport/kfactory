@@ -1,6 +1,6 @@
 """KFactory package. Utilities for creating photonic devices.
 
-Uses the klayout package as a backend.
+Uses the independent rlayout package as a backend.
 
 """
 # The import order matters, we need to first import the important stuff.
@@ -8,9 +8,9 @@ Uses the klayout package as a backend.
 
 __version__ = "3.2.0"
 
-import klayout.db as kdb
-from klayout import lay
-from klayout import rdb
+import rlayout.db as kdb
+from rlayout import lay
+from rlayout import rdb
 
 from .factory_metadata import (
     FactoryMetadata,

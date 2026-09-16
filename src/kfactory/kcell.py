@@ -41,7 +41,7 @@ from typing import (
 )
 
 import ruamel.yaml
-from klayout import __version__ as _klayout_version
+from rlayout import __klayout_version__ as _klayout_version
 from pydantic import (
     BaseModel,
     Field,

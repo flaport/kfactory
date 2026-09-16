@@ -1,4 +1,4 @@
-import klayout.db as kdb
+import rlayout.db as kdb
 
 from kfactory.utils.simplify import dsimplify, simplify
 

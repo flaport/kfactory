@@ -85,26 +85,14 @@ def test_instance_array(
         for y in range(6):
             disp_o1 = (
                 ref.ports["o1", x, y].dcplx_trans.displacement
-                - (
-                    kf.kdb.DCplxTrans(
-                        trans=kf.kdb.InstElement(
-                            ref.instance, x, y
-                        ).specific_cplx_trans(),
-                        dbu=c.kcl.dbu,
-                    )
-                    * ref.cell.ports["o1"].dcplx_trans
+                - ref.cell.ports["o1"].dcplx_trans.then(
+                    ref.instance.element_transform(x, y).to_dtype(c.kcl.dbu)
                 ).displacement
             )
             disp_o2 = (
                 ref.ports["o2", x, y].dcplx_trans.displacement
-                - (
-                    kf.kdb.DCplxTrans(
-                        trans=kf.kdb.InstElement(
-                            ref.instance, x, y
-                        ).specific_cplx_trans(),
-                        dbu=c.kcl.dbu,
-                    )
-                    * ref.cell.ports["o2"].dcplx_trans
+                - ref.cell.ports["o2"].dcplx_trans.then(
+                    ref.instance.element_transform(x, y).to_dtype(c.kcl.dbu)
                 ).displacement
             )
             assert abs(disp_o1.x) < 0.0005

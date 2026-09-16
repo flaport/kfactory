@@ -2162,7 +2162,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             bounds = self._base.kdb_cell.bbox()
             box = bounds.to_dtype(self.kcl.dbu) if bounds is not None else None
         else:
-            bounds = self._base.kdb_cell.layer_bbox(self.kcl.layout.layer_by_index(layer))
+            bounds = self._base.kdb_cell.layer_bbox(layer)
             box = bounds.to_dtype(self.kcl.dbu) if bounds is not None else None
         if self.vinsts:
             logger.warning(

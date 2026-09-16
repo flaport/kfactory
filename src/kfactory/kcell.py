@@ -879,10 +879,6 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         """Gets the cell index."""
         return self._base.kdb_cell.index
 
-    def each_inst(self):
-        """Iterate existing live instance handles from this cell."""
-        yield from self.kdb_cell.instances()
-
     def called_cells(self) -> list[int]:
         """Cell indices for every cell transitively instantiated inside this cell."""
         return self._base.kdb_cell.called_cells()
@@ -1657,7 +1653,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
     def each_inst(self) -> Iterator[Instance]:
         """Iterates over all child instances (which may actually be instance arrays)."""
         yield from (
-            Instance(self.kcl, inst) for inst in self._base.kdb_cell.each_inst()
+            Instance(self.kcl, inst) for inst in self._base.kdb_cell.instances()
         )
 
     def each_overlapping_inst(self, b: kdb.Box | kdb.DBox) -> Iterator[Instance]:
@@ -2569,7 +2565,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                     (
                         self.kcl[ci]
                         for ci in called_cell_indexes & self.kcl.tkcells.keys()
-                        if not self.kcl[ci].kdb_cell._destroyed()
+                        if not self.kcl[ci].kdb_cell.is_destroyed()
                     ),
                     key=lambda c: c.hierarchy_levels(),
                 ):

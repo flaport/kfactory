@@ -46,16 +46,16 @@ def save_layout_options(**attributes: Any) -> kdb.SaveLayoutOptions:
             gds without metadata pass `write_context_info=False`
     """
     save = kdb.SaveLayoutOptions()
-    save.write_context_info = config.write_context_info
-    save.gds2_write_cell_properties = config.write_cell_properties
-    save.gds2_write_file_properties = config.write_file_properties
-    save.gds2_write_timestamps = config.write_timestamps
-    save.gds2_max_cellname_length = config.max_cellname_length
-    save.gds2_multi_xy_records = config.multi_xy_records
-    save.gds2_max_vertex_count = config.max_vertex_count
+    save.set("write_context_info", config.write_context_info)
+    save.set("gds2_write_cell_properties", config.write_cell_properties)
+    save.set("gds2_write_file_properties", config.write_file_properties)
+    save.set("gds2_write_timestamps", config.write_timestamps)
+    save.set("gds2_max_cellname_length", config.max_cellname_length)
+    save.set("gds2_multi_xy_records", config.multi_xy_records)
+    save.set("gds2_max_vertex_count", config.max_vertex_count)
 
     for k, v in attributes.items():
-        setattr(save, k, v)
+        save.set(k, v)
 
     return save
 

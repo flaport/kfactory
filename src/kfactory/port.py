@@ -115,7 +115,7 @@ def port_check(
         )
     if checks & PortCheck.width and not (p1.iwidth == p2.iwidth):
         raise ValueError(f"Width mismatch for {p1=} {p2=}")
-    if checks & PortCheck.layer and not p1.layer_info.is_equivalent(p2.layer_info):
+    if checks & PortCheck.layer and not p1.layer_info.logical_eq(p2.layer_info):
         raise ValueError(f"Layer mismatch for {p1=} {p2=}")
     if checks & PortCheck.port_type and not p1.port_type == p2.port_type:
         raise ValueError(f"Port type mismatch for {p1=} {p2=}")
@@ -341,7 +341,7 @@ class BasePort(BaseModel, arbitrary_types_allowed=True):
             check += PortCheck.layer
             check += PortCheck.width
         else:
-            if self_xs.main_layer.is_equivalent(other_xs.main_layer):
+            if self_xs.main_layer.logical_eq(other_xs.main_layer):
                 check += PortCheck.layer
             if self_xs.width == other_xs.width:
                 check += PortCheck.width
@@ -1824,7 +1824,7 @@ def filter_layer_info[TPort: ProtoPort[Any]](
     """Filter iterable/sequence of ports by kdb.LayerInfo."""
 
     def layer_filter(p: TPort) -> bool:
-        return p.layer_info.is_equivalent(layer_info)
+        return p.layer_info.logical_eq(layer_info)
 
     return filter(layer_filter, ports)
 

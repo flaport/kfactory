@@ -610,7 +610,7 @@ class LayerEnclosure(BaseModel, arbitrary_types_allowed=True, frozen=True):
     def __eq__(self, other: object) -> bool:
         if isinstance(other, LayerEnclosure):
             if self.main_layer is not None and other.main_layer is not None:
-                layer_info_equal = self.main_layer.is_equivalent(other.main_layer)
+                layer_info_equal = self.main_layer.logical_eq(other.main_layer)
             else:
                 layer_info_equal = self.main_layer == other.main_layer
             return (

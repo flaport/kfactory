@@ -596,14 +596,14 @@ class TKCell(BaseKCell):
         if (
             value != self.kdb_cell.name
             and value != self.kcl.layout.unique_cell_name(value)
-            and not self.kcl.layout.cell(value).is_library_cell()
+            and not self.kcl.layout.find_cell(value).is_library_cell()
             and not self.is_library_cell()
         ):
             stack = inspect.stack()
             module = inspect.getmodule(stack[3].frame)
             tkcells = [
                 self.kcl.tkcells[cell.cell_index()]
-                for cell in self.kcl.layout.cells(value)
+                for cell in self.kcl.cells(value)
                 if not cell.is_library_cell()
             ]
 
@@ -614,10 +614,10 @@ class TKCell(BaseKCell):
                     f"{frame_info.frame.f_locals['f'].__code__.co_filename}::"
                     f"{frame_info.frame.f_locals['f'].__name__} at line "
                     f"{frame_info.frame.f_locals['f'].__code__.co_firstlineno}\n"
-                    f"Renaming {self.name} (cell_index={self.kdb_cell.cell_index()}) to"
+                    f"Renaming {self.name} (cell_index={self.kdb_cell.index}) to"
                     f" {value} would cause it to be named the same as:\n"
                     + "\n".join(
-                        f" - {tkcell.name} (cell_index={tkcell.kdb_cell.cell_index()}),"
+                        f" - {tkcell.name} (cell_index={tkcell.kdb_cell.index}),"
                         f" function_name={tkcell.function_name},"
                         f" basename={tkcell.basename}"
                         for tkcell in tkcells
@@ -629,11 +629,11 @@ class TKCell(BaseKCell):
                         f"{frame_info.frame.f_locals['f'].__code__.co_filename}::"
                         f"{frame_info.frame.f_locals['f'].__name__} at line "
                         f"{frame_info.frame.f_locals['f'].__code__.co_firstlineno}\n"
-                        f"Renaming {self.name} (cell_index={self.kdb_cell.cell_index()}"
+                        f"Renaming {self.name} (cell_index={self.kdb_cell.index}"
                         f") to {value} would cause it to be named the same as:\n"
                         + "\n".join(
                             f" - {tkcell.name} "
-                            f"(cell_index={tkcell.kdb_cell.cell_index()}),"
+                            f"(cell_index={tkcell.kdb_cell.index}),"
                             f" function_name={tkcell.function_name},"
                             f" basename={tkcell.basename}"
                             for tkcell in tkcells
@@ -655,11 +655,11 @@ class TKCell(BaseKCell):
                         f"{module_name}{function_name} at line "
                         f"{frame_info.lineno}\n"
                         f"Renaming {self.name} (cell_index="
-                        f"{self.kdb_cell.cell_index()}) to"
+                        f"{self.kdb_cell.index}) to"
                         f" {value} would cause it to be named the same as:\n"
                         + "\n".join(
                             f" - {tkcell.name} "
-                            f"(cell_index={tkcell.kdb_cell.cell_index()}),"
+                            f"(cell_index={tkcell.kdb_cell.index}),"
                             f" function_name={tkcell.function_name},"
                             f" basename={tkcell.basename}"
                             for tkcell in tkcells
@@ -671,11 +671,11 @@ class TKCell(BaseKCell):
                             f"{module_name}{function_name} at line "
                             f"{frame_info.lineno}\n"
                             f"Renaming {self.name} (cell_index="
-                            f"{self.kdb_cell.cell_index()}) to"
+                            f"{self.kdb_cell.index}) to"
                             f" {value} would cause it to be named the same as:\n"
                             + "\n".join(
                                 f" - {tkcell.name} "
-                                f"(cell_index={tkcell.kdb_cell.cell_index()}),"
+                                f"(cell_index={tkcell.kdb_cell.index}),"
                                 f" function_name={tkcell.function_name},"
                                 f" basename={tkcell.basename}"
                                 for tkcell in tkcells
@@ -692,11 +692,11 @@ class TKCell(BaseKCell):
                         f"{frame_info.filename}"
                         f"{function_name} at line {frame_info.lineno}\n"
                         f"Renaming {self.name} (cell_index="
-                        f"{self.kdb_cell.cell_index()}) to"
+                        f"{self.kdb_cell.index}) to"
                         f" {value} would cause it to be named the same as:\n"
                         + "\n".join(
                             f" - {tkcell.name} "
-                            f"(cell_index={tkcell.kdb_cell.cell_index()}),"
+                            f"(cell_index={tkcell.kdb_cell.index}),"
                             f" function_name={tkcell.function_name},"
                             f" basename={tkcell.basename}"
                             for tkcell in tkcells
@@ -708,11 +708,11 @@ class TKCell(BaseKCell):
                             f"{frame_info.filename}"
                             f"{function_name} at line {frame_info.lineno}\n"
                             f"Renaming {self.name} (cell_index="
-                            f"{self.kdb_cell.cell_index()}) to"
+                            f"{self.kdb_cell.index}) to"
                             f" {value} would cause it to be named the same as:\n"
                             + "\n".join(
                                 f" - {tkcell.name} "
-                                f"(cell_index={tkcell.kdb_cell.cell_index()}),"
+                                f"(cell_index={tkcell.kdb_cell.index}),"
                                 f" function_name={tkcell.function_name},"
                                 f" basename={tkcell.basename}"
                                 for tkcell in tkcells
@@ -777,7 +777,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                 kdb_cell.name = name
         kdb_cell_ = kdb_cell or kcl_.create_cell(name_)
         if name_ == "Unnamed_!":
-            kdb_cell_.name = f"Unnamed_{kdb_cell_.cell_index()}"
+            kdb_cell_.name = f"Unnamed_{kdb_cell_.index}"
 
         self._base = TKCell(
             kcl=kcl_,
@@ -839,7 +839,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
 
     def __hash__(self) -> int:
         """Hash the KCell."""
-        return hash((self._base.kcl.library.name(), self._base.kdb_cell.cell_index()))
+        return hash((self._base.kcl.library.name(), self._base.kdb_cell.index))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ProtoTKCell):
@@ -877,7 +877,11 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
 
     def cell_index(self) -> int:
         """Gets the cell index."""
-        return self._base.kdb_cell.cell_index()
+        return self._base.kdb_cell.index
+
+    def each_inst(self):
+        """Iterate existing live instance handles from this cell."""
+        yield from self.kdb_cell.instances()
 
     def called_cells(self) -> list[int]:
         """Cell indices for every cell transitively instantiated inside this cell."""
@@ -964,7 +968,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         return self._base.kdb_cell
 
     def destroyed(self) -> bool:
-        return self._base.kdb_cell._destroyed()
+        return self._base.kdb_cell.is_destroyed()
 
     @property
     def boundary(self) -> kdb.DPolygon | None:
@@ -1350,7 +1354,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
             c = self.kcl.layout_cell(ci)
             assert c is not None
             it = kdb.RecursiveInstanceIterator(self.kcl.layout, c)
-            it.targets = [old_kdb_cell.cell_index()]
+            it.targets = [old_kdb_cell.index]
             it.max_depth = 0
             insts = [instit.current_inst_element().inst() for instit in it.each()]
             locked = c.locked
@@ -1361,7 +1365,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                 c.replace(inst, ca)
             c.locked = locked
 
-        self.kcl.layout.delete_cell(old_kdb_cell.cell_index())
+        self.kcl.layout.delete_cell(old_kdb_cell.index)
 
     def draw_ports(self) -> None:
         """Draw all the ports on their respective layer."""
@@ -2554,7 +2558,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
 
     def insert_vinsts(self, recursive: bool = True) -> None:
         """Insert all virtual instances and create Instances of real KCells."""
-        if not self._base.kdb_cell._destroyed():
+        if not self._base.kdb_cell.is_destroyed():
             for vi in self._base.vinsts:
                 vi.insert_into(self)
             self._base.vinsts.clear()

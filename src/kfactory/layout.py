@@ -785,12 +785,12 @@ class KCLayout(
         allow_undefined_layers = kwargs.pop(
             "allow_undefined_layers", config.allow_undefined_layers
         )
-        info = self.layout.get_info(self.layout.layer(*args, **kwargs))
+        info = self.get_info(self.layer(*args, **kwargs))
         try:
             return self.layers[info.name]
         except KeyError as e:
             if allow_undefined_layers:
-                return self.layout.layer(info)
+                return self.layer(info)
             raise KeyError(
                 f"Layer '{args=}, {kwargs=}' has not been defined in the KCLayout. "
                 "Have you defined the layer and set it in KCLayout.info?"
@@ -1964,9 +1964,21 @@ class KCLayout(
         kcl.rename_function = self.rename_function
         return kcl
 
+    def layer(self, layer: kdb.LayerInfo | int, datatype: int = 0, name: str = "") -> int:
+        """Resolve a descriptor to this KCLayout's native layer index."""
+        info = layer if isinstance(layer, kdb.LayerInfo) else kdb.LayerInfo(layer, datatype, name)
+        return self.layout.layer(info).index
+
+    def get_info(self, index: int) -> kdb.LayerInfo:
+        """Read metadata through an owner-checked native layer handle."""
+        layer = self.layout.layer_by_index(index)
+        if layer is None:
+            raise ValueError(f"Unknown layer index {index}")
+        return self.layout.layer_info(layer)
+
     def layout_cell(self, name: str | int) -> kdb.Cell | None:
         """Get a cell by name or index from the Layout object."""
-        return self.layout.cell(name)
+        return self.layout.find_cell(name) if isinstance(name, str) else self.layout.cell_by_index(name)
 
     @overload
     def cells(self, name: str) -> list[kdb.Cell]: ...
@@ -1976,8 +1988,8 @@ class KCLayout(
 
     def cells(self, name: str | None = None) -> int | list[kdb.Cell]:
         if name is None:
-            return self.layout.cells()
-        return self.layout.cells(name)
+            return len(self.layout.cells())
+        return [cell for cell in self.layout.cells() if cell.name == name]
 
     def create_cell(
         self,

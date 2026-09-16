@@ -350,8 +350,8 @@ def _overwrite_existing(
     name: str | None, cell: ProtoTKCell[Any], kcl: KCLayout
 ) -> None:
     for c in list(kcl.cells(name or cell.name)):
-        if c is not cell.kdb_cell:
-            c_ = kcl[c.cell_index()]
+        if c.index != cell.kdb_cell.index:
+            c_ = kcl[c.index]
             c_.delete(delete_parents=True)
 
 
@@ -516,7 +516,7 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
                     if layout_cache:
                         if overwrite_existing:
                             for c in list(kcl.cells(name)):
-                                _overwrite_existing(name, kcl[c.cell_index()], kcl)
+                                _overwrite_existing(name, kcl[c.index], kcl)
                         else:
                             layout_cell = kcl.layout_cell(kcl._future_cell_name)
                             if layout_cell is not None:
@@ -525,7 +525,7 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
                                     kcl._future_cell_name,
                                 )
                                 return kcl.get_cell(
-                                    layout_cell.cell_index(), output_type
+                                    layout_cell.index, output_type
                                 )
                     logger.debug(f"Constructing {kcl._future_cell_name}")
                     name_: str | None = name
@@ -578,7 +578,8 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
                 match check_unnamed_cells:
                     case CheckUnnamedCells.RAISE | CheckUnnamedCells.WARNING:
                         unnamed_cells: list[str] = []
-                        for ci in cell.kdb_cell.each_child_cell():
+                        for child in cell.kdb_cell.child_cells():
+                            ci = child.index
                             c = cell.kcl[ci]
                             if re.fullmatch(_fixed_unnamed_pattern, c.name):
                                 factory_name = c.basename or c.function_name

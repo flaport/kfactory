@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import gc
 import inspect
 from collections import defaultdict
 from collections.abc import (
@@ -110,8 +111,39 @@ if TYPE_CHECKING:
         T,
     )
 
+class _KCLayoutRegistry(dict[str, Any]):
+    """Release RLayout's live library when removing its KCLayout owner."""
+
+    _missing = object()
+
+    @staticmethod
+    def _release(value: KCLayout) -> None:
+        if not value.library._destroyed():
+            try:
+                value.library.delete()
+            except RuntimeError as exc:
+                if "borrowed by a native shape iterator" not in str(exc):
+                    raise
+                gc.collect()
+                value.library.delete()
+
+    def pop(self, key: str, default: Any = _missing) -> KCLayout | Any:
+        if key not in self:
+            if default is self._missing:
+                raise KeyError(key)
+            return default
+        value = super().pop(key)
+        self._release(value)
+        return value
+
+    def __delitem__(self, key: str) -> None:
+        value = self[key]
+        super().__delitem__(key)
+        self._release(value)
+
+
 kcl: KCLayout
-kcls: dict[str, KCLayout] = {}
+kcls: dict[str, KCLayout] = _KCLayoutRegistry()
 
 __all__ = ["KCLayout", "cell", "get_default_kcl", "kcl", "kcls", "vcell"]
 

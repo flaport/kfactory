@@ -753,7 +753,7 @@ def test_prune(kcl: kf.KCLayout) -> None:
     assert len(kcl.factories["test1"]) == 1
     assert len(kcl.factories["test2"]) == 1
     kcl.factories["test2"].prune()
-    assert test_cell._destroyed()
+    assert test_cell.destroyed()
     assert len(kcl.factories["test1"]) == 0
     assert len(kcl.factories["test2"]) == 0
 

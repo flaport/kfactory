@@ -1762,7 +1762,11 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         if trans is not None:
             inst = cast("kdb.Instance", inst_or_trans)
             parent = inst.parent_cell
-            if self.destroyed() or parent.layout() is not self.kcl.layout or parent.cell_index != self.cell_index():
+            if (
+                self.destroyed()
+                or parent.layout() is not self.kcl.layout
+                or parent.index != self.cell_index()
+            ):
                 raise ValueError("Instance belongs to another parent cell")
             inst.transform(trans)
             return Instance(self.kcl, inst)

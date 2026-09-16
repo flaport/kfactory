@@ -477,7 +477,7 @@ class ProtoKCell[T: (int, float), TB: BaseKCell](GeometricObject[T], ABC):
 
     def layer(self, *args: Any, **kwargs: Any) -> int:
         """Get the layer info, convenience for `klayout.db.Layout.layer`."""
-        return self._base.kcl.layout.layer(*args, **kwargs)
+        return self._base.kcl.layer(*args, **kwargs)
 
     @property
     def factory_name(self) -> str:

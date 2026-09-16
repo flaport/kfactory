@@ -110,8 +110,8 @@ class ProtoTInstances[T: (int, float)](ProtoInstances[T, ProtoTInstance[T]], ABC
     def __getitem__(self, key: str | int) -> ProtoTInstance[T]: ...
 
     def clear(self) -> None:
-        for inst in self:
-            inst.delete()
+        self._tkcell.kdb_cell.clear_insts()
+        self._tkcell.instance_infos.clear()
 
     def append(self, inst: ProtoTInstance[Any]) -> None:
         """Append a new instance."""

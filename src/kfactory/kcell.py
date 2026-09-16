@@ -239,10 +239,10 @@ def _check_duplicate_cell_names(
             if c is None or c.is_destroyed():
                 continue
             unique = layout.unique_cell_name(name)
-            was_locked = c.is_locked()
+            was_locked = c.locked
             if was_locked:
                 c.locked = False
-            c.name = unique
+            c.rename(unique)
             if was_locked:
                 c.locked = True
             detail = _cell_detail(ci, layout, tkcells)
@@ -1480,14 +1480,16 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         filename = str(filename)
         if autoformat_from_file_extension:
             save_options.set_format_from_filename(filename)
+        save_options = save_options.copy()
+        save_options.select_cells(self.kcl.layout, [self.kdb_cell])
         try:
-            self._base.kdb_cell.write(filename, save_options)
+            self.kcl.layout.write_with_options(filename, save_options)
         except RuntimeError:
             relevant_cells = {self.cell_index(), *self.called_cells()}
             _check_duplicate_cell_names(
                 self.layout(), relevant_cells, auto_rename=deduplicate_cell_names
             )
-            self._base.kdb_cell.write(filename, save_options)
+            self.kcl.layout.write_with_options(filename, save_options)
 
     def write_bytes(
         self,
@@ -1536,8 +1538,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                 ...
 
         save_options.set("format", save_options.get("format") or "OASIS")
-        save_options.clear_cells()
-        save_options.select_cell(self.cell_index())
+        save_options.select_cells(self.kcl.layout, [self.kdb_cell])
         try:
             return self.kcl.layout.write_bytes(save_options)
         except RuntimeError:

@@ -2586,10 +2586,10 @@ class KCLayout(
         if autoformat_from_file_extension:
             options.set_format_from_filename(filename)
         try:
-            return self.layout.write(filename, options)
+            return self.layout.write_with_options(filename, options)
         except RuntimeError:
             all_indices = {
-                c.cell_index() for c in self.layout.each_cell() if not c.is_destroyed()
+                c.index for c in self.layout.cells() if not c.is_destroyed()
             }
             _check_duplicate_cell_names(
                 self.layout,
@@ -2597,7 +2597,7 @@ class KCLayout(
                 auto_rename=deduplicate_cell_names,
                 tkcells=self.tkcells,
             )
-            return self.layout.write(filename, options)
+            return self.layout.write_with_options(filename, options)
 
     def write_bytes(
         self,
@@ -2632,7 +2632,7 @@ class KCLayout(
             return self.layout.write_bytes(options)
         except RuntimeError:
             all_indices = {
-                c.cell_index() for c in self.layout.each_cell() if not c.is_destroyed()
+                c.index for c in self.layout.cells() if not c.is_destroyed()
             }
             _check_duplicate_cell_names(
                 self.layout,

@@ -304,19 +304,13 @@ def _layout_xor(
     tolerance: int = 0,
     raises: Literal["error", "warning"] = "error",
 ) -> None:
-    diff = kf.kdb.LayoutDiff()
-    ly_a = kf.kdb.Layout()
-    ly_a.read(str(path_a))
-    ly_b = kf.kdb.Layout()
-    ly_b.read(str(path_b))
-
-    flags = (
-        kf.kdb.LayoutDiff.Verbose
-        | kf.kdb.LayoutDiff.WithMetaInfo
-        | kf.kdb.LayoutDiff.NoLayerNames
+    diff = kf.kdb.LayoutDiff(
+        tolerance=tolerance, include_metadata=True, ignore_layer_names=True
     )
+    ly_a = kf.kdb.Layout.read(path_a)
+    ly_b = kf.kdb.Layout.read(path_b)
 
-    if not diff.compare(ly_a, ly_b, flags=flags, tolerance=tolerance):
+    if not diff.compare(ly_a, ly_b):
         match raises:
             case "error":
                 raise AssertionError(

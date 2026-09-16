@@ -29,10 +29,10 @@ def test_write_and_write_bytes(
     def make_duplicate() -> None:
         # Force a raw duplicate name, bypassing the KCell name setter which
         # would otherwise log/raise depending on ``config.debug_names``.
-        child_b.kdb_cell.name = "child_a"
+        child_b.kdb_cell.rename("child_a")
 
     def dedup_names() -> list[str]:
-        return sorted(c.name for c in kcl.layout.each_cell())
+        return sorted(c.name for c in kcl.layout.cells())
 
     path = tmp_path / "out.gds"
 

@@ -40,11 +40,11 @@ def boundary_from_shapes(c: KCell) -> kdb.DPolygon | None:
     """
     region = kdb.Region()
     for layer_index in c.kcl.layer_indexes():
-        region.insert(c.shapes(layer_index))
-    region.merge()
+        region.insert_shapes(c.shapes(layer_index))
+    region = region.merged()
     if region.is_empty():
         return None
-    return region[0].to_dtype(c.kcl.dbu)
+    return next(region.polygons()).to_dtype(c.kcl.dbu)
 
 
 def layer_enclosure_to_sections(

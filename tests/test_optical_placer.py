@@ -196,11 +196,13 @@ def test_asymmetric_route_geometry(
         if i == 0 or p != expected_points[i - 1]
     ]
     expected = extrude(expected_points, 0)
-    expected_region = kf.kdb.Region(expected.begin_shapes_rec(kcl.layer(layers.WG)))
-    expected_region.transform(transform)
-    actual = kf.kdb.Region(cell.begin_shapes_rec(kcl.layer(layers.WG)))
-    assert (actual ^ expected_region).is_empty()
-    assert actual.merged().count() == 2
+    layer_id = kcl.layout.layer(layers.WG)
+    expected_region = kf.kdb.Region.from_cell(expected.kdb_cell, layer_id).transformed(
+        transform
+    )
+    actual = kf.kdb.Region.from_cell(cell.kdb_cell, layer_id)
+    assert actual.xor(expected_region).is_empty()
+    assert actual.merged().size() == 2
     assert route.start_port.trans == kf.kdb.Trans.M90.then(p1.trans)
     assert route.end_port.trans == kf.kdb.Trans.M90.then(p2.trans)
 

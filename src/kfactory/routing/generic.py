@@ -313,16 +313,19 @@ def get_radius(ports: Sequence[ProtoPort[Any]]) -> dbu:
         )
     p1, p2 = ports_
     if p1.angle == p2.angle:
-        return int((p1.trans.disp - p2.trans.disp).length())
+        return int((p1.trans.displacement - p2.trans.displacement).length())
     p = kdb.Point(1, 0)
-    e1 = kdb.Edge(p1.trans.disp.to_p(), p1.trans * p)
-    e2 = kdb.Edge(p2.trans.disp.to_p(), p2.trans * p)
+    e1 = kdb.Edge(p1.trans.displacement.to_point(), p.transformed(p1.trans))
+    e2 = kdb.Edge(p2.trans.displacement.to_point(), p.transformed(p2.trans))
 
     center = e1.cut_point(e2)
     if center is None:
         raise ValueError("Could not determine the radius. Something went very wrong.")
     return int(
-        max((p1.trans.disp - center).length(), (p2.trans.disp - center).length())
+        max(
+            (p1.trans.displacement - center.to_vector()).length(),
+            (p2.trans.displacement - center.to_vector()).length(),
+        )
     )
 
 
@@ -496,7 +499,15 @@ def route_bundle(
     if start_angles is not None:
         if isinstance(start_angles, int):
             start_ports = [
-                p.transformed(post_trans=kdb.Trans(start_angles - p.get_trans().angle))
+                p.transformed(
+                    post_trans=kdb.Trans(
+                        kdb.Rotation.from_quarter_turns(
+                            start_angles - p.get_trans().rotation.quarter_turns
+                        ),
+                        False,
+                        kdb.Vector(0, 0),
+                    )
+                )
                 for p in start_ports
             ]
         else:
@@ -506,14 +517,30 @@ def route_bundle(
                     " a rotation for all ports must be provided."
                 )
             start_ports = [
-                p.transformed(post_trans=kdb.Trans(a - p.get_trans().angle))
+                p.transformed(
+                    post_trans=kdb.Trans(
+                        kdb.Rotation.from_quarter_turns(
+                            a - p.get_trans().rotation.quarter_turns
+                        ),
+                        False,
+                        kdb.Vector(0, 0),
+                    )
+                )
                 for a, p in zip(start_angles, start_ports, strict=False)
             ]
 
     if end_angles is not None:
         if isinstance(end_angles, int):
             end_ports = [
-                p.transformed(post_trans=kdb.Trans(end_angles - p.get_trans().angle))
+                p.transformed(
+                    post_trans=kdb.Trans(
+                        kdb.Rotation.from_quarter_turns(
+                            end_angles - p.get_trans().rotation.quarter_turns
+                        ),
+                        False,
+                        kdb.Vector(0, 0),
+                    )
+                )
                 for p in end_ports
             ]
         else:
@@ -523,7 +550,15 @@ def route_bundle(
                     " a rotation for all ports must be provided."
                 )
             end_ports = [
-                p.transformed(post_trans=kdb.Trans(a - p.get_trans().angle))
+                p.transformed(
+                    post_trans=kdb.Trans(
+                        kdb.Rotation.from_quarter_turns(
+                            a - p.get_trans().rotation.quarter_turns
+                        ),
+                        False,
+                        kdb.Vector(0, 0),
+                    )
+                )
                 for a, p in zip(end_angles, end_ports, strict=False)
             ]
 

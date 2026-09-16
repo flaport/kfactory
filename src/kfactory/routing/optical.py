@@ -126,8 +126,8 @@ def path_length_match(
                 ]
 
                 for i in range(1, loops):
-                    t = kdb.Trans(i * 4 * br, 0)
-                    pts += [t * pt for pt in pts[:4]]
+                    t = kdb.Trans(displacement=kdb.Vector(i * 4 * br, 0))
+                    pts += [pt.transformed(t) for pt in pts[:4]]
             case LoopSide.right:
                 loop_length = (path_length - length) // (loops * 2)
                 pts = [
@@ -138,8 +138,8 @@ def path_length_match(
                 ]
 
                 for i in range(1, loops):
-                    t = kdb.Trans(i * 4 * br, 0)
-                    pts += [t * pt for pt in pts[:4]]
+                    t = kdb.Trans(displacement=kdb.Vector(i * 4 * br, 0))
+                    pts += [pt.transformed(t) for pt in pts[:4]]
 
             case LoopSide.center:
                 loop_length = (path_length - length) // (loops * 2)
@@ -190,21 +190,33 @@ def path_length_match(
         else:
             d = 3
 
-        t = kdb.Trans(element_pts[0].to_v()) * kdb.Trans(d, False, 0, 0)
+        t = kdb.Trans(kdb.Rotation.from_quarter_turns(d), False, kdb.Vector(0, 0)).then(
+            kdb.Trans(displacement=element_pts[0].to_vector())
+        )
 
         match loop_position:
             case LoopPosition.start:
                 if element == 0 or element == -len(router.start.pts):
-                    t *= kdb.Trans(br, 0)
+                    t = kdb.Trans(displacement=kdb.Vector(br, 0)).then(t)
                 else:
-                    t *= kdb.Trans(2 * br, 0)
+                    t = kdb.Trans(displacement=kdb.Vector(2 * br, 0)).then(t)
             case LoopPosition.center:
-                t *= kdb.Trans(round((v.length() - pts[-1].x) / 2), 0)
+                t = kdb.Trans(
+                    displacement=kdb.Vector(round((v.length() - pts[-1].x) / 2), 0)
+                ).then(t)
             case LoopPosition.end:
                 if element == 0 or element == -len(router.start.pts):
-                    t *= kdb.Trans(round(v.length() - br - pts[-1].x // 2), 0)
+                    t = kdb.Trans(
+                        displacement=kdb.Vector(
+                            round(v.length() - br - pts[-1].x // 2), 0
+                        )
+                    ).then(t)
                 else:
-                    t *= kdb.Trans(round(v.length() - 2 * br - pts[-1].x), 0)
+                    t = kdb.Trans(
+                        displacement=kdb.Vector(
+                            round(v.length() - 2 * br - pts[-1].x), 0
+                        )
+                    ).then(t)
             case _:
                 raise ValueError(
                     "Argument loop_position must be of any value of "
@@ -226,7 +238,7 @@ def path_length_match(
                 pts[1].y += l_diff
                 pts[2].y += l_diff
 
-        pts = [t * p for p in pts]
+        pts = [p.transformed(t) for p in pts]
 
         if element < 0:
             router.start.pts[element:element] = pts
@@ -563,11 +575,13 @@ def route_bundle(
                         it.add_value(
                             kdb.DText(
                                 f"Waypoint {i + 1}/{wp_len}",
-                                kdb.Trans(wp.to_v()).to_dtype(c.kcl.dbu),
+                                kdb.Trans(displacement=wp.to_vector()).to_dtype(
+                                    c.kcl.dbu
+                                ),
                             )
                         )
                         it.add_value(
-                            kdb.Box(width).moved(wp.to_v()).to_dtype(c.kcl.dbu)
+                            kdb.Box(width).moved(wp.to_vector()).to_dtype(c.kcl.dbu)
                         )
                     for error_wp in non_manhattan_wps:
                         it = db.create_item(cell=cell, category=err_cat)
@@ -746,9 +760,11 @@ def route_bundle(
                     it = db.create_item(cell=cell, category=wp_cat)
                     it.add_value(f"Waypoint {i + 1}/{wp_len}")
                     it.add_value(
-                        kdb.DText(f"Waypoint {i + 1}/{wp_len}", kdb.DTrans(wp_d.to_v()))
+                        kdb.DText(
+                            f"Waypoint {i + 1}/{wp_len}", kdb.DTrans(wp_d.to_vector())
+                        )
                     )
-                    it.add_value(kdb.DBox(width_d).moved(wp_d.to_v()))
+                    it.add_value(kdb.DBox(width_d).moved(wp_d.to_vector()))
                 for error_wp_d in non_manhattan_wps_d:
                     it = db.create_item(cell=cell, category=err_cat)
                     it.add_value(
@@ -778,10 +794,9 @@ def _bend90_geometry(
         raise ValueError("bend90_cell needs named ports")
     # The frame describes the bend's geometry, not its ports' transverse profiles.
     corner = kdb.Trans(
-        p1.angle,
+        kdb.Rotation.from_quarter_turns(p1.angle),
         False,
-        p1.x if p1.angle % 2 else p2.x,
-        p2.y if p1.angle % 2 else p1.y,
+        kdb.Vector(p1.x if p1.angle % 2 else p2.x, p2.y if p1.angle % 2 else p1.y),
     )
     return p1, p2, corner
 
@@ -835,8 +850,8 @@ def place_manhattan_asymmetric(
         )
     if (
         len(pts) < 2
-        or pts[0] != p1.trans.disp.to_p()
-        or pts[-1] != p2.trans.disp.to_p()
+        or pts[0] != p1.trans.displacement.to_point()
+        or pts[-1] != p2.trans.displacement.to_point()
     ):
         raise ValueError("The backbone must start and end at the route ports.")
     if (
@@ -879,7 +894,9 @@ def place_manhattan_asymmetric(
                 "Taper ports must connect the route to an asymmetric profile."
             )
         taper_ports = ports
-        route.taper_length = round((ports[1].trans.disp - ports[0].trans.disp).length())
+        route.taper_length = round(
+            (ports[1].trans.displacement - ports[0].trans.displacement).length()
+        )
 
     def connect(cell: ProtoTKCell[Any], name: str | None, target: Port) -> Instance:
         if cell.kcl is not c.kcl:
@@ -902,7 +919,7 @@ def place_manhattan_asymmetric(
         return inst
 
     def straight(start: Port, end: Port) -> tuple[Port, Port]:
-        length = round((end.trans.disp - start.trans.disp).length())
+        length = round((end.trans.displacement - start.trans.displacement).length())
         if not length:
             _check_cross_section_compatibility(start, end)
             return end.copy(), start.copy()
@@ -913,13 +930,16 @@ def place_manhattan_asymmetric(
         inst = connect(cell, ports[0].name, start)
         first, last = inst.ports[ports[0].name], inst.ports[ports[1].name]
         _check_cross_section_compatibility(last, end)
-        if last.trans.disp != end.trans.disp or (last.angle - end.angle) % 4 != 2:
+        if (
+            last.trans.displacement != end.trans.displacement
+            or (last.angle - end.angle) % 4 != 2
+        ):
             raise ValueError("The asymmetric straight does not reach its destination.")
         route.length_straights += length
         return first, last
 
     def segment(start: Port, end: Port) -> tuple[Port, Port]:
-        length = (end.trans.disp - start.trans.disp).length()
+        length = (end.trans.displacement - start.trans.displacement).length()
         if taper_ports is None or length < 2 * route.taper_length + min_straight_taper:
             return straight(start, end)
         assert taper_cell is not None
@@ -943,12 +963,18 @@ def place_manhattan_asymmetric(
         turn = (vec_angle(outgoing) - vec_angle(incoming)) % 4
         if turn not in (1, 3):
             raise ValueError("Bend waypoints must describe 90° turns.")
-        position = kdb.Trans((vec_angle(incoming) + 2) % 4, turn == 1, pts[i].to_v())
+        position = kdb.Trans(
+            kdb.Rotation.from_quarter_turns((vec_angle(incoming) + 2) % 4),
+            turn == 1,
+            pts[i].to_vector(),
+        )
         # The placed input must have the opposite mirror flag to the previous port.
-        bend_cell, bp1, bp2, corner_inverse = bends[position.mirror == previous.mirror]
+        bend_cell, bp1, bp2, corner_inverse = bends[
+            position.mirror_x == previous.mirror
+        ]
         bend = c << bend_cell
         bend.purpose = purpose
-        bend.trans = position * corner_inverse
+        bend.trans = corner_inverse.then(position)
         bend_in, bend_out = bend.ports[bp1.name], bend.ports[bp2.name]
         first, _ = segment(previous, bend_in)
         if i == 1:
@@ -978,7 +1004,9 @@ def _place_straight(
     allow_layer_mismatch: bool,
     allow_type_mismatch: bool,
 ) -> tuple[Port, Port]:
-    length = int((p1.trans.disp.to_p() - p2.trans.disp.to_p()).length())
+    length = int(
+        (p1.trans.displacement.to_point() - p2.trans.displacement.to_point()).length()
+    )
     wg = c << straight_factory(width=w, length=length)
     wg.purpose = purpose
     wg_p1, _ = (v for v in wg.ports if v.port_type == port_type)
@@ -1009,8 +1037,8 @@ def _place_sbend(
     allow_type_mismatch: bool,
 ) -> tuple[Port, Port]:
     p1_ = p1.copy()
-    p1_.trans.mirror = False
-    delta_p = p1_.trans.inverted() * p2.trans.disp.to_p()
+    p1_.trans = p1_.trans.with_mirror_x(False)
+    delta_p = p2.trans.displacement.to_point().transformed(p1_.trans.inverted())
 
     offset = abs(delta_p.y)
     sbend_group = sbend_factory(c=c, width=w, length=delta_p.x, offset=offset)
@@ -1030,8 +1058,8 @@ def _place_sbend(
     sp1, sp2 = sbend_group.ports[0], sbend_group.ports[1]
 
     sp1_ = sp1.copy_polar()
-    sp1_.trans.mirror = False
-    sbg_delta_p = sp1_.trans.inverted() * sp2.trans.disp.to_p()
+    sp1_.trans = sp1_.trans.with_mirror_x(False)
+    sbg_delta_p = sp2.trans.displacement.to_point().transformed(sp1_.trans.inverted())
     if delta_p.y == sbg_delta_p.y:
         sbend_group.connect(
             sp1.name,
@@ -1075,7 +1103,9 @@ def _place_tapered_straight(
     allow_type_mismatch: bool,
 ) -> tuple[Port, Port]:
     taperp1, taperp2 = taper_ports
-    length = int((p1.trans.disp.to_p() - p2.trans.disp.to_p()).length())
+    length = int(
+        (p1.trans.displacement.to_point() - p2.trans.displacement.to_point()).length()
+    )
     t1 = c << taper_cell
     t1.purpose = purpose
     t1.connect(
@@ -1097,7 +1127,9 @@ def _place_tapered_straight(
     )
     route.instances.append(t2)
     route.n_taper += 2
-    l_ = int(length - (taperp1.trans.disp - taperp2.trans.disp).length() * 2)
+    l_ = int(
+        length - (taperp1.trans.displacement - taperp2.trans.displacement).length() * 2
+    )
     if l_ != 0:
         p1_ = t1.ports[taperp2.name]
         p2_ = t2.ports[taperp2.name]
@@ -1135,7 +1167,9 @@ def _place_tapered_sbend_or_straight(
     allow_type_mismatch: bool,
 ) -> tuple[Port, Port]:
     taperp1, taperp2 = taper_ports
-    length = int((p1.trans.disp.to_p() - p2.trans.disp.to_p()).length())
+    length = int(
+        (p1.trans.displacement.to_point() - p2.trans.displacement.to_point()).length()
+    )
     t1 = c << taper_cell
     t1.purpose = purpose
     t1.connect(
@@ -1157,7 +1191,9 @@ def _place_tapered_sbend_or_straight(
     )
     route.instances.append(t2)
     route.n_taper += 2
-    l_ = int(length - (taperp1.trans.disp - taperp2.trans.disp).length() * 2)
+    l_ = int(
+        length - (taperp1.trans.displacement - taperp2.trans.displacement).length() * 2
+    )
     if l_ != 0:
         p1_ = t1.ports[taperp2.name]
         p2_ = t2.ports[taperp2.name]
@@ -1238,17 +1274,21 @@ def place_manhattan(
         )
         route_end_port.trans = route_end_port.trans
     route_start_port.name = "route_start"
-    route_start_port.trans.angle = (route_start_port.angle + 2) % 4
+    route_start_port.trans = route_start_port.trans.with_rotation(
+        kdb.Rotation.from_quarter_turns((route_start_port.angle + 2) % 4)
+    )
     route_end_port.name = "route_end"
-    route_end_port.trans.angle = (route_end_port.angle + 2) % 4
+    route_end_port.trans = route_end_port.trans.with_rotation(
+        kdb.Rotation.from_quarter_turns((route_end_port.angle + 2) % 4)
+    )
 
     b90p1, b90p2, b90c = _bend90_geometry(bend90_cell, port_type)
     # Symmetric placement historically follows the bend port's mirror flag.
-    b90c.mirror = b90p1.mirror
+    b90c = b90c.with_mirror_x(b90p1.mirror)
     b90r = round(
         max(
-            (b90p1.trans.disp - b90c.disp).length(),
-            (b90p2.trans.disp - b90c.disp).length(),
+            (b90p1.trans.displacement - b90c.displacement).length(),
+            (b90p2.trans.displacement - b90c.displacement).length(),
         )
     )
     route = ManhattanRoute(
@@ -1278,14 +1318,16 @@ def place_manhattan(
                 "At least one of the taper's optical ports must be the same width as"
                 " the bend's ports"
             )
-        route.taper_length = int((taperp1.trans.disp - taperp2.trans.disp).length())
+        route.taper_length = int(
+            (taperp1.trans.displacement - taperp2.trans.displacement).length()
+        )
     w = route_width or p1.width
 
     def segment(
         start: Port, end: Port, *, width_override: int | None = route_width
     ) -> tuple[Port, Port]:
         """Place one connection, selecting tapers only when they fit."""
-        length = int((end.trans.disp - start.trans.disp).length())
+        length = int((end.trans.displacement - start.trans.displacement).length())
         if (
             taper_cell is not None
             and length >= 2 * route.taper_length + min_straight_taper
@@ -1371,9 +1413,19 @@ def place_manhattan(
                 f"The vector between manhattan points is not manhattan {old_pt}, {pt}"
             )
         ang = (vec_angle(vec) + 2) % 4
-        bend90.transform(kdb.Trans(ang, mirror, pt.x, pt.y) * b90c.inverted())
+        bend90.transform(
+            b90c.inverted().then(
+                kdb.Trans(
+                    kdb.Rotation.from_quarter_turns(ang), mirror, kdb.Vector(pt.x, pt.y)
+                )
+            )
+        )
         new_bend_port = bend90.ports[b90p1.name]
-        length = int((new_bend_port.trans.disp - old_bend_port.trans.disp).length())
+        length = int(
+            (
+                new_bend_port.trans.displacement - old_bend_port.trans.displacement
+            ).length()
+        )
         if length > 0:
             p1_, _ = segment(old_bend_port, new_bend_port)
             if i == 1:
@@ -1381,7 +1433,9 @@ def place_manhattan(
         route.instances.append(bend90)
         old_pt = pt
         old_bend_port = bend90.ports[b90p2.name]
-    length = int((bend90.ports[b90p2.name].trans.disp - p2.trans.disp).length())
+    length = int(
+        (bend90.ports[b90p2.name].trans.displacement - p2.trans.displacement).length()
+    )
     if length > 0:
         _, p2_ = segment(old_bend_port, p2)
         route.end_port = p2_.copy()
@@ -1447,18 +1501,22 @@ def place_manhattan_with_sbends(
         )
     route_start_port = p1.copy()
     route_start_port.name = "route_start"
-    route_start_port.trans.angle = (route_start_port.angle + 2) % 4
+    route_start_port.trans = route_start_port.trans.with_rotation(
+        kdb.Rotation.from_quarter_turns((route_start_port.angle + 2) % 4)
+    )
     route_end_port = p2.copy()
     route_end_port.name = "route_end"
-    route_end_port.trans.angle = (route_end_port.angle + 2) % 4
+    route_end_port.trans = route_end_port.trans.with_rotation(
+        kdb.Rotation.from_quarter_turns((route_end_port.angle + 2) % 4)
+    )
 
     b90p1, b90p2, b90c = _bend90_geometry(bend90_cell, port_type)
     # Symmetric placement historically follows the bend port's mirror flag.
-    b90c.mirror = b90p1.mirror
+    b90c = b90c.with_mirror_x(b90p1.mirror)
     b90r = round(
         max(
-            (b90p1.trans.disp - b90c.disp).length(),
-            (b90p2.trans.disp - b90c.disp).length(),
+            (b90p1.trans.displacement - b90c.displacement).length(),
+            (b90p2.trans.displacement - b90c.displacement).length(),
         )
     )
     route = ManhattanRoute(
@@ -1488,14 +1546,16 @@ def place_manhattan_with_sbends(
                 "At least one of the taper's optical ports must be the same width as"
                 " the bend's ports"
             )
-        route.taper_length = int((taperp1.trans.disp - taperp2.trans.disp).length())
+        route.taper_length = int(
+            (taperp1.trans.displacement - taperp2.trans.displacement).length()
+        )
     w = route_width or p1.width
 
     def segment(
         start: Port, end: Port, *, width_override: int | None = route_width
     ) -> tuple[Port, Port]:
         """Place one connection, selecting tapers only when they fit."""
-        length = int((end.trans.disp - start.trans.disp).length())
+        length = int((end.trans.displacement - start.trans.displacement).length())
         if (
             taper_cell is not None
             and length >= 2 * route.taper_length + min_straight_taper
@@ -1540,7 +1600,15 @@ def place_manhattan_with_sbends(
     if len(pts) == MIN_POINTS_FOR_PLACEMENT:
         vec = pts[1] - pts[0]
         if _is_sbend_vec(vec):
-            sbend_vec = (kdb.Trans(-p1.angle, False, 0, 0) * vec.to_p()).to_v()
+            sbend_vec = (
+                vec.to_point().transformed(
+                    kdb.Trans(
+                        kdb.Rotation.from_quarter_turns(-p1.angle),
+                        False,
+                        kdb.Vector(0, 0),
+                    )
+                )
+            ).to_vector()
             _place_sbend(
                 c=c,
                 sbend_factory=sbend_factory,
@@ -1573,7 +1641,15 @@ def place_manhattan_with_sbends(
 
         vec = pt - old_pt
         if _is_sbend_vec(vec):
-            sbend_vec = (kdb.Trans(-old_angle, False, 0, 0) * vec.to_p()).to_v()
+            sbend_vec = (
+                vec.to_point().transformed(
+                    kdb.Trans(
+                        kdb.Rotation.from_quarter_turns(-old_angle),
+                        False,
+                        kdb.Vector(0, 0),
+                    )
+                )
+            ).to_vector()
             bend_port = old_bend_port.copy_polar(
                 d=sbend_vec.x, d_orth=sbend_vec.y, angle=2
             )
@@ -1599,7 +1675,11 @@ def place_manhattan_with_sbends(
 
         if _is_sbend_vec(vec_n):
             new_bend_port = old_bend_port.copy_polar(int(vec.length()))
-            length = int((new_bend_port.trans.disp - old_bend_port.trans.disp).length())
+            length = int(
+                (
+                    new_bend_port.trans.displacement - old_bend_port.trans.displacement
+                ).length()
+            )
             if length > 0:
                 _, p2_ = segment(old_bend_port, new_bend_port)
             old_pt = pt
@@ -1632,9 +1712,19 @@ def place_manhattan_with_sbends(
                 f"The vector between manhattan points is not manhattan {old_pt}, {pt}"
             )
         ang = (vec_angle(vec) + 2) % 4
-        bend90.transform(kdb.Trans(ang, mirror, pt.x, pt.y) * b90c.inverted())
+        bend90.transform(
+            b90c.inverted().then(
+                kdb.Trans(
+                    kdb.Rotation.from_quarter_turns(ang), mirror, kdb.Vector(pt.x, pt.y)
+                )
+            )
+        )
         new_bend_port = bend90.ports[b90p1.name]
-        length = int((new_bend_port.trans.disp - old_bend_port.trans.disp).length())
+        length = int(
+            (
+                new_bend_port.trans.displacement - old_bend_port.trans.displacement
+            ).length()
+        )
         if length > 0:
             p1_, p2_ = segment(old_bend_port, new_bend_port)
             if i == 1:
@@ -1644,7 +1734,7 @@ def place_manhattan_with_sbends(
         old_bend_port = bend90.ports[b90p2.name]
     vec = pts[-1] - pts[-2]
     if _is_sbend_vec(vec):
-        sbend_vec = (old_bend_port.trans.inverted() * pts[-1]).to_v()
+        sbend_vec = (pts[-1].transformed(old_bend_port.trans.inverted())).to_vector()
         bend_port = old_bend_port.copy_polar(d=sbend_vec.x, d_orth=sbend_vec.y, angle=2)
         _place_sbend(
             c=c,
@@ -1660,7 +1750,9 @@ def place_manhattan_with_sbends(
         )
         route.end_port = bend_port
     else:
-        length = int((old_bend_port.trans.disp - p2.trans.disp).length())
+        length = int(
+            (old_bend_port.trans.displacement - p2.trans.displacement).length()
+        )
         if length > 0:
             _, p2_ = segment(old_bend_port, p2)
             route.end_port = p2_.copy()
@@ -1718,11 +1810,13 @@ def route_loopback(
     t2 = port2 if isinstance(port2, kdb.Trans) else port2.trans
 
     (t1, port1_), (t2, _) = sorted(
-        [(t1, port1), (t2, port2)], key=lambda t: -(t1.inverted() * t[0]).disp.y
+        [(t1, port1), (t2, port2)],
+        key=lambda t: -(t[0].then(t1.inverted())).displacement.y,
     )
 
     if (t1.angle != t2.angle) and (
-        (t1.disp.x == t2.disp.x) or (t1.disp.y == t2.disp.y)
+        (t1.displacement.x == t2.displacement.x)
+        or (t1.displacement.y == t2.displacement.y)
     ):
         raise ValueError(
             "for a standard loopback the ports must point in the same direction and"
@@ -1735,40 +1829,100 @@ def route_loopback(
         start_straight <= 0 and bend180_radius is None
     ):
         pts_start = [
-            t1 * pz,
-            t1 * kdb.Trans(0, False, start_straight + bend90_radius, 0) * pz,
+            pz.transformed(t1),
+            pz.transformed(
+                kdb.Trans(
+                    kdb.Rotation.from_quarter_turns(0),
+                    False,
+                    kdb.Vector(start_straight + bend90_radius, 0),
+                ).then(t1)
+            ),
         ]
     elif start_straight > 0:
-        pts_start = [t1 * pz, t1 * kdb.Trans(0, False, start_straight, 0) * pz]
+        pts_start = [
+            pz.transformed(t1),
+            pz.transformed(
+                kdb.Trans(
+                    kdb.Rotation.from_quarter_turns(0),
+                    False,
+                    kdb.Vector(start_straight, 0),
+                ).then(t1)
+            ),
+        ]
     else:
-        pts_start = [t1 * pz]
+        pts_start = [pz.transformed(t1)]
     if (end_straight > 0 and bend180_radius is None) or (
         end_straight <= 0 and bend180_radius is None
     ):
         pts_end = [
-            t2 * kdb.Trans(0, False, end_straight + bend90_radius, 0) * pz,
-            t2 * pz,
+            pz.transformed(
+                kdb.Trans(
+                    kdb.Rotation.from_quarter_turns(0),
+                    False,
+                    kdb.Vector(end_straight + bend90_radius, 0),
+                ).then(t2)
+            ),
+            pz.transformed(t2),
         ]
     elif end_straight > 0:
-        pts_end = [t2 * kdb.Trans(0, False, end_straight, 0) * pz, t2 * pz]
+        pts_end = [
+            pz.transformed(
+                kdb.Trans(
+                    kdb.Rotation.from_quarter_turns(0),
+                    False,
+                    kdb.Vector(end_straight, 0),
+                ).then(t2)
+            ),
+            pz.transformed(t2),
+        ]
     else:
-        pts_end = [t2 * pz]
+        pts_end = [pz.transformed(t2)]
 
     if inside:
         if bend180_radius is not None:
-            t1 *= kdb.Trans(2, False, start_straight, -bend180_radius)
-            t2 *= kdb.Trans(2, False, end_straight, bend180_radius)
+            t1 = kdb.Trans(
+                kdb.Rotation.from_quarter_turns(2),
+                False,
+                kdb.Vector(start_straight, -bend180_radius),
+            ).then(t1)
+            t2 = kdb.Trans(
+                kdb.Rotation.from_quarter_turns(2),
+                False,
+                kdb.Vector(end_straight, bend180_radius),
+            ).then(t2)
         else:
-            t1 *= kdb.Trans(
-                2, False, start_straight + bend90_radius, -2 * bend90_radius
-            )
-            t2 *= kdb.Trans(2, False, end_straight + bend90_radius, 2 * bend90_radius)
+            t1 = kdb.Trans(
+                kdb.Rotation.from_quarter_turns(2),
+                False,
+                kdb.Vector(start_straight + bend90_radius, -2 * bend90_radius),
+            ).then(t1)
+            t2 = kdb.Trans(
+                kdb.Rotation.from_quarter_turns(2),
+                False,
+                kdb.Vector(end_straight + bend90_radius, 2 * bend90_radius),
+            ).then(t2)
     elif bend180_radius is not None:
-        t1 *= kdb.Trans(2, False, start_straight, bend180_radius)
-        t2 *= kdb.Trans(2, False, end_straight, -bend180_radius)
+        t1 = kdb.Trans(
+            kdb.Rotation.from_quarter_turns(2),
+            False,
+            kdb.Vector(start_straight, bend180_radius),
+        ).then(t1)
+        t2 = kdb.Trans(
+            kdb.Rotation.from_quarter_turns(2),
+            False,
+            kdb.Vector(end_straight, -bend180_radius),
+        ).then(t2)
     else:
-        t1 *= kdb.Trans(2, False, start_straight + bend90_radius, 2 * bend90_radius)
-        t2 *= kdb.Trans(2, False, end_straight + bend90_radius, -2 * bend90_radius)
+        t1 = kdb.Trans(
+            kdb.Rotation.from_quarter_turns(2),
+            False,
+            kdb.Vector(start_straight + bend90_radius, 2 * bend90_radius),
+        ).then(t1)
+        t2 = kdb.Trans(
+            kdb.Rotation.from_quarter_turns(2),
+            False,
+            kdb.Vector(end_straight + bend90_radius, -2 * bend90_radius),
+        ).then(t2)
 
     pts = (
         pts_start

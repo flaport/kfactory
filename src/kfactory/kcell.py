@@ -2159,7 +2159,8 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         insert_vinsts() materializes their geometry.
         """
         if layer is None:
-            box = self._base.kdb_cell.dbbox()
+            bounds = self._base.kdb_cell.bbox()
+            box = bounds.to_dtype(self.kcl.dbu) if bounds is not None else None
         else:
             box = self._base.kdb_cell.dbbox(layer)
         if self.vinsts:

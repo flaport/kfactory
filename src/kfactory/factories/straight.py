@@ -205,7 +205,7 @@ def straight_dbu_factory(
         _info.update(_additional_info)
         c.info = Info(**_info)
 
-        c.boundary = kdb.DPolygon(c.dbbox())
+        c.boundary = kdb.DPolygon.from_box(c.dbbox())
         c.auto_rename_ports()
         return c
 

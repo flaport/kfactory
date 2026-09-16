@@ -338,7 +338,6 @@ _SERIALIZABLE_SHAPES: UnionType = (
     | kdb.Matrix2d
     | kdb.Matrix3d
     | kdb.Point
-    | kdb.Texts
     | kdb.Trans
     | kdb.VCplxTrans
     | kdb.Vector
@@ -346,6 +345,11 @@ _SERIALIZABLE_SHAPES: UnionType = (
     | _ISHAPES
     | _DSHAPES
 )
+# Text collections are an optional backend capability. Keep the same membership
+# when available; unsupported !#Texts deserialization still fails at lookup.
+if hasattr(kdb, "Texts"):
+    _SERIALIZABLE_SHAPES |= kdb.Texts
+
 _SERIALIZABLE_VALUES_OR_SHAPES: UnionType = (
     bool | int | float | str | _SERIALIZABLE_SHAPES
 )

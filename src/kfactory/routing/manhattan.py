@@ -358,10 +358,8 @@ class ManhattanRouter:
         start_points: list[kdb.Point],
         end_points: list[kdb.Point],
     ) -> None:
-        start = self.start_transformation.dup()
-        start.mirror = False
-        end = self.end_transformation.dup()
-        end.mirror = False
+        start = self.start_transformation.with_mirror_x(False)
+        end = self.end_transformation.with_mirror_x(False)
 
         self.start = ManhattanRouterSide(
             router=self,
@@ -2472,8 +2470,7 @@ def _route_waypoints(
         half_width = (sum(widths) + (len(widths) - 1) * separation) // 2
         backbone_start_trans: list[kdb.Trans] = []
         backbone_end_trans: list[kdb.Trans] = []
-        rot_t = waypoints * kdb.Trans.R180
-        rot_t.mirror = False
+        rot_t = (waypoints * kdb.Trans.R180).with_mirror_x(False)
         w = -half_width
         for i in range(length_widths):
             w += widths[i] // 2

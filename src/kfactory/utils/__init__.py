@@ -8,9 +8,7 @@ calculate areas that violate min space violations.
 """
 
 from .difftest import diff, difftest, xor
-from .fill import fill_tiled
 from .simplify import dsimplify, simplify
-from .violations import fix_spacing_minkowski_tiled, fix_spacing_tiled
 
 __all__ = [
     "diff",
@@ -22,3 +20,19 @@ __all__ = [
     "simplify",
     "xor",
 ]
+
+
+def __getattr__(name: str):
+    # Optional tiled algorithms require native receiver subclass support.
+    # Load their unchanged implementations only when explicitly requested.
+    from importlib import import_module
+
+    if name == "fill_tiled":
+        module = ".fill"
+    elif name in {"fix_spacing_minkowski_tiled", "fix_spacing_tiled"}:
+        module = ".violations"
+    else:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(module, __name__), name)
+    globals()[name] = value
+    return value

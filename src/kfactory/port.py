@@ -246,8 +246,8 @@ class BasePort(BaseModel, arbitrary_types_allowed=True):
     @model_serializer()
     def ser_model(self) -> BasePortDict:
         """Serialize the BasePort."""
-        trans = self.trans if self.trans is not None else None
-        dcplx_trans = self.dcplx_trans if self.dcplx_trans is not None else None
+        trans = self.trans.dup() if self.trans is not None else None
+        dcplx_trans = self.dcplx_trans.dup() if self.dcplx_trans is not None else None
         return BasePortDict(
             name=self.name,
             kcl=self.kcl,

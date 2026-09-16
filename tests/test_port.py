@@ -141,8 +141,8 @@ def test_base_port_get_trans(kcl: kf.KCLayout, layers: Layers) -> None:
         dcplx_trans=kf.kdb.DCplxTrans(1, 0, False, kf.kdb.DVector(1, 0)),
     )
 
-    assert port.get_dcplx_trans() == kf.kdb.ICplxTrans(1, 0, False, kf.kdb.DVector(1, 0))
-    assert port.get_trans() == kf.kdb.ICplxTrans(1, 0, False, kf.kdb.DVector(1000, 0)).to_orthogonal()
+    assert port.get_dcplx_trans() == kf.kdb.ICplxTrans(1, 0, False, kf.kdb.Vector(1, 0)).to_dtype(1.0)
+    assert port.get_trans() == kf.kdb.ICplxTrans(1, 0, False, kf.kdb.Vector(1000, 0)).to_orthogonal()
 
 
 def test_base_port_eq(kcl: kf.KCLayout, layers: Layers) -> None:

@@ -316,6 +316,7 @@ def route_bundle(
                         )
                     c_.show(lyrdb=db)
                 raise ValueError(error_msg) from e
+            raise
 
     if route_width is not None:
         if isinstance(route_width, list):

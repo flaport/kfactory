@@ -1,6 +1,6 @@
 site_name: KFactory
-repo_url: https://github.com/gdsfactory/kfactory
-site_url: https://gdsfactory.github.io/kfactory/
+repo_url: https://github.com/flaport/kfactory
+site_url: https://effective-adventure-zzjj3eg.pages.github.io/docs/
 docs_dir: source-built
 
 nav:

@@ -68,7 +68,7 @@ class FactoryContext:
     changed configuration and changed factory registration require a new context.
     """
 
-    def __init__(self, layout, cache_path):
+    def __init__(self, layout, cache_path, source_roots=()):
         self.layout = layout
         self.cache_path = Path(cache_path).resolve()
         self.factories = layout.factories.all()
@@ -86,7 +86,7 @@ class FactoryContext:
                 for dist in distributions
             )
         }
-        self.roots = set(self.package_roots)
+        self.roots = set(self.package_roots) | set(source_roots)
         self.active_functions = set()
         self.active_models = set()
         self.output_layers = {}

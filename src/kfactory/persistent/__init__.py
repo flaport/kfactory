@@ -24,6 +24,7 @@ class Frame:
     before: set
     persistable: bool = True
     names: dict = field(default_factory=dict)
+    allocations: int = 0
 
 
 @dataclass
@@ -63,6 +64,7 @@ class PersistentCache:
         self.store = native.Store(self.path)
         self.native = native.LayoutCache(layout.layout)
         self.context = None
+        self.source_roots = set()
         self.values = native.InputValues()
         self.frames = []
         self.staged = []
@@ -75,6 +77,30 @@ class PersistentCache:
         self.diagnostics = []
         self.fallback_depth = 0
 
+    def watch_source_root(self, path):
+        """Watch an additional source directory/file, before the first call.
+
+        Directories use the same Python-source manifest rules as discovered roots.
+        Use declare_file for runtime data, including non-Python configuration.
+        """
+        if self.context is not None:
+            raise SourceContextChanged("source roots must be configured before the first factory call")
+        root = Path(path).resolve(strict=True)
+        if root in (Path(root.anchor), Path.home()):
+            raise ValueError("source root must be a bounded project directory or file")
+        if not (root.is_dir() or root.is_file()):
+            raise ValueError("source root must be a regular file or directory")
+        self.source_roots.add(root)
+
+    def record_allocation(self, cell, requested):
+        if self.frames and not self.fallback_depth:
+            frame = self.frames[-1]
+            # Only constructor-known anonymous allocations are normalized. Never
+            # infer intent from a name pattern or rename the live native cell.
+            intended = requested if requested is not None else f"Unnamed_{frame.allocations}"
+            frame.allocations += 1
+            frame.names[cell.index] = (intended, cell.name)
+
     def record_name(self, cell, requested, actual):
         if self.frames:
             self.frames[-1].names[cell.cell_index()] = (requested, actual)
@@ -84,7 +110,7 @@ class PersistentCache:
 
     def _context(self):
         if self.context is None:
-            self.context = FactoryContext(self.layout, self.path)
+            self.context = FactoryContext(self.layout, self.path, self.source_roots)
         if self.frames:
             self.context.accept_output_registrations()
         self.context.check()
@@ -172,6 +198,50 @@ class PersistentCache:
         if reset_context:
             self.context = None
 
+    def _result_key(self, cell, context):
+        from ..kcell import ProtoTKCell
+        if not isinstance(cell, ProtoTKCell) or cell.kcl is not self.layout:
+            raise NotPersistable("prebuilt input needs a tracked cell in this KCLayout")
+        index = cell.cell_index()
+        key = self.pending_cells.get(index, self.cells.get(index))
+        proof = self.pending_proofs.get(index, self.proofs.get(index))
+        if key is None or proof is None or self._fingerprint(cell) != proof[1]:
+            raise NotPersistable("prebuilt input has no unchanged persistent provenance")
+        if index not in self.pending_cells and self.store.invalid_reason(key[0], context, self.values) is not None:
+            raise NotPersistable("prebuilt input result is invalid; request its factory again")
+        return key
+
+    def _encode_call(self, params, context):
+        from ..kcell import ProtoTKCell
+        dependencies = set()
+        def adapt(value):
+            if isinstance(value, ProtoTKCell):
+                key = self._result_key(value, context)
+                dependencies.add(key[0])
+                return ("persistent-cell", self.context.encode(type(value)), self.store.library_id, key)
+            return self.context.adapt(value)
+        return canonical(params, adapt=adapt), dependencies
+
+    def declare_result(self, cell):
+        """Track a prebuilt cell read during this build, even without instances.
+
+        Untracked or invalid input cells make the active build non-persistable;
+        requesting their factory again establishes a current result version.
+        """
+        if self.fallback_depth:
+            return
+        frame = self._frame()
+        self._check_provenance()
+        try:
+            key = self._result_key(cell, bytes.fromhex(self.context.identity))
+        except NotPersistable as reason:
+            frame.persistable = False
+            diagnostic = ("declare_result", str(reason))
+            if diagnostic not in self.diagnostics:
+                self.diagnostics.append(diagnostic)
+        else:
+            frame.build.observe_result(key[0])
+
     def declare_file(self, path):
         if self.fallback_depth:
             return
@@ -256,7 +326,8 @@ class PersistentCache:
                         frame.persistable = False
                     self.pending_entries.clear()
                     break
-            call = hashlib.sha256(self.context.encode(params)).digest()
+            encoded, input_results = self._encode_call(params, context)
+            call = hashlib.sha256(encoded).digest()
         except NotPersistable as reason:
             self._diagnose(factory, reason)
             self._record(None)
@@ -284,6 +355,8 @@ class PersistentCache:
                 return entry.cell
         frame = Frame(self.store.begin_build(self.layout.name, factory.qualified_name, call, context),
                       {cell.index for cell in self.layout.layout.each_cell()})
+        for result in input_results:
+            frame.build.observe_result(result)
         self.frames.append(frame)
         entry = None
         try:

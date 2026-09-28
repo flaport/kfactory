@@ -778,6 +778,9 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         if name_ == "Unnamed_!":
             kdb_cell_.name = f"Unnamed_{kdb_cell_.index}"
 
+        if kdb_cell is None and kcl_.persistent_cache is not None:
+            kcl_.persistent_cache.record_allocation(kdb_cell_, name)
+
         self._base = TKCell(
             kcl=kcl_,
             info=Info(**(info or {})),

@@ -68,14 +68,19 @@ class FactoryContext:
     changed configuration and changed factory registration require a new context.
     """
 
-    def __init__(self, layout, cache_path, source_roots=()):
+    def __init__(self, layout, cache_path, source_roots=(), peer_layouts=()):
         self.layout = layout
+        self.peer_layouts = peer_layouts
+        self.session = None
         self.cache_path = Path(cache_path).resolve()
         self.factories = layout.factories.all()
         if len({factory.qualified_name for factory in self.factories}) != len(self.factories):
             raise NotPersistable("ambiguous factory qualified names need distinct recipe registrations")
         self.originals = {factory.qualified_name: factory._f for factory in self.factories}
         self.factory_names = {factory.qualified_name for factory in self.factories}
+        self.registered_factory_names = self.factory_names | {
+            factory.qualified_name for peer in peer_layouts for factory in peer.factories.all()
+        }
         self.package_roots = {discover_root(kf.__file__), Path(rlayout.__file__).resolve().parent}
         self.environment = environment_identity()
         self.site_roots = {Path(sysconfig.get_path(name)).resolve() for name in ("purelib", "platlib")}
@@ -102,15 +107,15 @@ class FactoryContext:
     def adapt(self, value):
         if value is inspect.Parameter.empty:
             return ("missing-parameter",)
-        if value is self.layout:
-            return ("KCLayout", self.layout.name)
+        if value is self.layout or any(value is peer for peer in self.peer_layouts):
+            return ("KCLayout", value.name)
         if isinstance(value, ModuleType) and value.__name__.split(".")[0] in SDK_PACKAGES:
             return ("sdk-module", value.__name__)
         if isinstance(value, ModuleType) and self.installed_module(value):
             return ("installed-module", value.__name__)
         if isinstance(value, FunctionType):
             name = ".".join(qualified(value))
-            if name in self.factory_names:
+            if name in self.registered_factory_names:
                 return ("registered-factory", name)
             if self.installed_module(sys.modules.get(value.__module__)):
                 return ("installed-callable", qualified(value))
@@ -262,6 +267,11 @@ class FactoryContext:
                     outputs[name] = known[name] = self.encode(value)
 
     def check(self):
+        if self.session is not None:
+            return self.session.check()
+        self.check_local()
+
+    def check_local(self):
         try:
             current_layers = self.layer_table()
             if any(current_layers.get(index) != info for index, info in self.output_layers.items()):

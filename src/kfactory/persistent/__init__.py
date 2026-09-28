@@ -14,7 +14,7 @@ from rlayout import factory as native
 from .. import kdb
 from ..cross_section import SymmetricalCrossSection, AsymmetricalCrossSection
 from ..enclosure import LayerEnclosure
-from ._context import FactoryContext
+from ._session import CacheSession
 from ._source import NotPersistable, SourceContextChanged, canonical
 
 
@@ -64,6 +64,9 @@ class PersistentCache:
         self.store = native.Store(self.path)
         self.native = native.LayoutCache(layout.layout)
         self.context = None
+        self.session = None
+        self.current_values = {}
+        self.current_versions = {}
         self.source_roots = set()
         self.values = native.InputValues()
         self.frames = []
@@ -109,11 +112,10 @@ class PersistentCache:
         return FactoryCacheView(self, factory)
 
     def _context(self):
-        if self.context is None:
-            self.context = FactoryContext(self.layout, self.path, self.source_roots)
-        if self.frames:
-            self.context.accept_output_registrations()
-        self.context.check()
+        if self.session is None:
+            CacheSession.open(self)
+        self.session.accept_active_outputs()
+        self.session.check()
         return bytes.fromhex(self.context.identity)
 
     def _diagnose(self, factory, reason):
@@ -166,14 +168,13 @@ class PersistentCache:
                 self.cells.clear()
                 self.proofs.clear()
                 self.entries.clear()
-                for frame in self.frames:
-                    frame.persistable = False
+                self.session.mark_untracked()
                 return False
         return True
 
     def inspect(self, factory):
         context = self._context()
-        self._check_provenance()
+        self.session.check_provenance()
         return {call: entry.cell for (producer, call), entry in self.entries.items()
                 if producer == factory.qualified_name
                 and self.store.invalid_reason(entry.result, context, self.values) is None}
@@ -183,7 +184,7 @@ class PersistentCache:
         self.entries = {key: value for key, value in self.entries.items() if key[0] != producer}
 
     def invalidate_all(self, *, reset_context=False):
-        if reset_context and self.frames:
+        if reset_context and self.session is not None and self.session.frames:
             raise RuntimeError("cannot clear the layout during a persistent factory build")
         if reset_context and self.context is not None:
             self.context.check()
@@ -195,13 +196,18 @@ class PersistentCache:
         self.proofs.clear()
         for frame in self.frames:
             frame.persistable = False
-        if reset_context:
-            self.context = None
+        if reset_context and self.session is not None:
+            self.session.reset()
 
     def _result_key(self, cell, context):
         from ..kcell import ProtoTKCell
-        if not isinstance(cell, ProtoTKCell) or cell.kcl is not self.layout:
-            raise NotPersistable("prebuilt input needs a tracked cell in this KCLayout")
+        if not isinstance(cell, ProtoTKCell):
+            raise NotPersistable("prebuilt input needs a tracked KCell or DKCell")
+        if cell.kcl is not self.layout:
+            peer = cell.kcl.persistent_cache
+            if peer is None or peer.session is not self.session:
+                raise NotPersistable("prebuilt input needs a layout sharing this store context")
+            return peer._result_key(cell, context)
         index = cell.cell_index()
         key = self.pending_cells.get(index, self.cells.get(index))
         proof = self.pending_proofs.get(index, self.proofs.get(index))
@@ -231,7 +237,7 @@ class PersistentCache:
         if self.fallback_depth:
             return
         frame = self._frame()
-        self._check_provenance()
+        self.session.check_provenance()
         try:
             key = self._result_key(cell, bytes.fromhex(self.context.identity))
         except NotPersistable as reason:
@@ -253,19 +259,25 @@ class PersistentCache:
         self._frame().build.observe_environment(name)
 
     def set_value(self, name, value):
-        self.values.set_value(name, canonical(value))
+        encoded = canonical(value)
+        self.current_values[name] = encoded
+        self.values.set_value(name, encoded)
 
     def set_version(self, name, value):
-        self.values.set_version(name, canonical(value))
+        encoded = canonical(value)
+        self.current_versions[name] = encoded
+        self.values.set_version(name, encoded)
 
     def declare_value(self, name, value):
         encoded = canonical(value)
+        self.current_values[name] = encoded
         self.values.set_value(name, encoded)
         if not self.fallback_depth:
             self._frame().build.observe_value(name, encoded)
 
     def declare_version(self, name, value):
         encoded = canonical(value)
+        self.current_versions[name] = encoded
         self.values.set_version(name, encoded)
         if not self.fallback_depth:
             self._frame().build.observe_version(name, encoded)
@@ -276,11 +288,12 @@ class PersistentCache:
         return self.frames[-1]
 
     def _record(self, entry):
-        if self.frames:
+        if self.session is not None and self.session.frames:
+            frame = self.session.frames[-1][1]
             if entry is None:
-                self.frames[-1].persistable = False
+                frame.persistable = False
             else:
-                self.frames[-1].build.observe_result(entry.result)
+                frame.build.observe_result(entry.result)
 
     def _load(self, factory, result, context, call):
         root = self.store.materialize_into(self.native, result, context, self.values)
@@ -312,20 +325,20 @@ class PersistentCache:
     def call(self, factory, params, execute):
         if self.fallback_depth:
             return execute()
-        outer = not self.frames
         try:
             context = self._context()
+            outer = not self.session.frames
             if not factory.persistent or factory.qualified_name not in self.context.factory_names:
                 raise NotPersistable("factory opts out or is not registered in the context")
             if factory.qualified_name in self.context.unsupported:
                 raise NotPersistable(self.context.unsupported[factory.qualified_name])
-            self._check_provenance()
-            for pending_cell, expected in self.pending_proofs.values():
-                if self._fingerprint(pending_cell) != expected:
-                    for frame in self.frames:
-                        frame.persistable = False
-                    self.pending_entries.clear()
-                    break
+            self.session.check_provenance()
+            for member in self.session.members:
+                for pending_cell, expected in member.pending_proofs.values():
+                    if member._fingerprint(pending_cell) != expected:
+                        self.session.mark_untracked()
+                        member.pending_entries.clear()
+                        break
             encoded, input_results = self._encode_call(params, context)
             call = hashlib.sha256(encoded).digest()
         except NotPersistable as reason:
@@ -358,6 +371,7 @@ class PersistentCache:
         for result in input_results:
             frame.build.observe_result(result)
         self.frames.append(frame)
+        self.session.frames.append((self, frame))
         entry = None
         try:
             cell = execute()
@@ -402,26 +416,14 @@ class PersistentCache:
                 entry = Entry(cell, prepared.id, factory.qualified_name, call)
                 self.pending_entries[key] = entry
                 if outer:
-                    self.context.check()
-                    if not self._check_provenance() or any(self._fingerprint(c) != proof for c, proof in self.pending_proofs.values()):
-                        raise NotPersistable("native inputs changed during the build")
-                    self.store.publish_batch(self.staged, self.values)
-                    self.store.remember_cells(self.native, [(key, index) for index, key in self.pending_cells.items()])
-                    self.cells.update(self.pending_cells)
-                    self.entries.update(self.pending_entries)
-                    for index in self.pending_cells:
-                        wrapped = self.layout.get_cell(index)
-                        self.proofs[index] = (wrapped, self._fingerprint(wrapped))
+                    self.session.publish(self)
             except NotPersistable as reason:
                 entry = None
                 self._diagnose(factory, reason)
             return cell
         finally:
             self.frames.pop()
+            self.session.frames.pop()
             self._record(entry)
             if outer:
-                self.staged.clear()
-                self.pending_entries.clear()
-                self.pending_cells.clear()
-                self.pending_proofs.clear()
-                self.context.accept_output_registrations()
+                self.session.discard_staging()

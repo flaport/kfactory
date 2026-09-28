@@ -104,6 +104,24 @@ class PersistentCache:
             frame.allocations += 1
             frame.names[cell.index] = (intended, cell.name)
 
+    def record_proxy_import(self, previous_indices):
+        if not self.frames:
+            return
+        for item in self.layout.layout.each_cell():
+            if item.index in previous_indices or not item.is_library_cell():
+                continue
+            peer = next((member for member in self.session.members
+                         if member.layout.layout.library().id == item.library().id), None)
+            if peer is None:
+                continue
+            source_index = item.library_cell_index()
+            key = peer.pending_cells.get(source_index, peer.cells.get(source_index))
+            if key is None:
+                continue
+            pending = next((prepared for prepared in self.staged if prepared.id == key[0]), None)
+            intended = pending.cell_name(key[1]) if pending is not None else self.store.cell_name(key)
+            self.frames[-1].names[item.index] = (intended, item.name)
+
     def record_name(self, cell, requested, actual):
         if self.frames:
             self.frames[-1].names[cell.cell_index()] = (requested, actual)
@@ -127,7 +145,7 @@ class PersistentCache:
         # KFactory's writer clears metadata before writing its own records.
         # Preserve unrelated native metadata across that existing conversion.
         other = [m for m in cell.kdb_cell.meta_info() if not m.name.startswith("kfactory:")]
-        cell.set_meta_data()
+        cell.set_meta_data(local=True)
         for metadata in other:
             cell.kdb_cell.add_meta_info(metadata)
         definitions = {}
@@ -152,8 +170,8 @@ class PersistentCache:
                     raise ValueError("unsupported cached port-definition kind")
 
     def _fingerprint(self, cell):
-        if cell.destroyed() or cell.is_library_cell():
-            raise NotPersistable("deleted cells or library proxies need tracked source provenance")
+        if cell.destroyed():
+            raise NotPersistable("deleted cell has no current native provenance")
         self._sync_metadata(cell)
         return self.native.cell_fingerprint(cell.kdb_cell)
 
@@ -295,29 +313,46 @@ class PersistentCache:
             else:
                 frame.build.observe_result(entry.result)
 
+    def _map_proxy(self, frame, item, context):
+        library = item.library()
+        peer = next((member for member in self.session.members
+                     if member.layout.layout.library().id == library.id), None)
+        if peer is None:
+            raise NotPersistable("proxy source is outside this store context")
+        source = peer.layout.get_cell(item.library_cell_index())
+        key = peer._result_key(source, context)
+        if not self.native.proxy_matches_source(item, source.kdb_cell):
+            raise NotPersistable("proxy geometry differs from its tracked native source")
+        frame.build.map_library_cell(peer.layout.layout, source.cell_index(), key, peer.layout.name)
+
     def _load(self, factory, result, context, call):
-        root = self.store.materialize_into(self.native, result, context, self.values)
-        root_key = None
-        # Geometry closure includes source-only cells; only actual client cells
-        # are returned by native.cell, preserving source ownership distinctions.
-        # The root's ordinal is obtained from the catalog's explicit metadata.
-        root_key = self.store.root(result)
-        for key in self.store.geometry_closure(root_key):
-            native_cell = self.native.cell(key)
-            if native_cell is None:
-                continue
-            cell = self.layout.get_cell(native_cell.index, factory.output_type)
-            if native_cell.index not in self.cells:
-                locked = cell.locked
-                try:
-                    cell.locked = False
-                    self._restore_port_definitions(cell)
-                    cell.get_meta_data()
-                finally:
-                    cell.locked = locked
-            self.cells[native_cell.index] = key
-            self.proofs[native_cell.index] = (cell, self._fingerprint(cell))
-        self.context.accept_output_registrations()
+        members = (self, *(member for member in self.session.members if member is not self))
+        targets = [(member.layout.name, member.native) for member in members]
+        root = self.store.materialize_into_libraries(targets, result, context, self.values)
+        # Combined geometry order restores real sources before their proxies.
+        for key in self.store.geometry_closure(self.store.root(result)):
+            for member in members:
+                native_cell = member.native.cell(key)
+                if native_cell is None:
+                    continue
+                if native_cell.index not in member.cells:
+                    locked = native_cell.locked
+                    try:
+                        # Wrapping a native proxy already restores source ports.
+                        # Unlock before creating its wrapper, and restore even
+                        # when wrapper construction or metadata decoding fails.
+                        native_cell.locked = False
+                        cell = member.layout.get_cell(native_cell.index)
+                        member._restore_port_definitions(cell)
+                        cell.get_meta_data(local=True)
+                    finally:
+                        native_cell.locked = locked
+                else:
+                    cell = member.layout.get_cell(native_cell.index)
+                member.cells[native_cell.index] = key
+                member.proofs[native_cell.index] = (cell, member._fingerprint(cell))
+        for member in members:
+            member.context.accept_output_registrations()
         self.context.check()
         cell = self.layout.get_cell(root.index, factory.output_type)
         return Entry(cell, result, factory.qualified_name, call)
@@ -393,10 +428,10 @@ class PersistentCache:
                     if existing is not None and item.index != cell.cell_index():
                         stored.append((item.index, existing))
                         continue
-                    if item.is_library_cell():
-                        raise NotPersistable("library proxies need source-aware automatic provenance")
                     if item.index in frame.before:
                         raise NotPersistable("untracked preexisting native cell in result hierarchy")
+                    if item.is_library_cell():
+                        self._map_proxy(frame, item, context)
                     owned.append(item.index)
                     wrapped = self.layout.get_cell(item.index)
                     self._sync_metadata(wrapped)

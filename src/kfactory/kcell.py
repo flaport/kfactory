@@ -1132,7 +1132,14 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
         if cell.layout() == self.layout():
             return cell.cell_index()
         assert cell.layout().library() is not None
+        cache = self.kcl.persistent_cache
+        previous_indices = (
+            {item.index for item in self.kcl.layout.each_cell()}
+            if cache is not None and cache.frames else None
+        )
         lib_ci = self.kcl.layout.add_lib_cell(cell.kcl.library, cell.cell_index())
+        if previous_indices is not None:
+            cache.record_proxy_import(previous_indices)
         if lib_ci not in self.kcl.tkcells:
             kcell = self.kcl[lib_ci]
             kcell.basename = cell.basename
@@ -1786,13 +1793,15 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                     port.dcplx_trans = inst_or_trans * port.dcplx_trans  # ty:ignore[unsupported-operator]
         return None
 
-    def set_meta_data(self) -> None:
+    def set_meta_data(self, *, local: bool = False) -> None:
         """Set metadata of the Cell.
 
-        Currently, ports, settings and info will be set.
+        Currently, ports, settings and info will be set. ``local=True`` also
+        records a proxy wrapper's state in its own units; the default retains the
+        usual source-library metadata behavior.
         """
         self.clear_meta_info()
-        if not self.is_library_cell():
+        if local or not self.is_library_cell():
             for i, port in enumerate(self.ports):
                 xs_name = port.base.any_cross_section.name
                 if port.base.trans is not None:
@@ -1877,8 +1886,9 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
     def get_meta_data(
         self,
         meta_format: Literal["v1", "v2", "v3"] | None = None,
+        *, local: bool = False,
     ) -> None:
-        """Read metadata from the KLayout Layout object."""
+        """Read metadata, optionally using a proxy's explicitly stored local state."""
         if meta_format is None:
             meta_format = config.meta_format
         port_dict: dict[str, Any] = {}
@@ -1895,7 +1905,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                     kcls[self.library().name()][
                         self.library_cell_index()
                     ].each_meta_info()
-                    if self.is_library_cell()
+                    if self.is_library_cell() and not local
                     else self.each_meta_info()
                 )
                 for meta in meta_iter:
@@ -1923,7 +1933,7 @@ class ProtoTKCell[T: (int, float)](ProtoKCell[T, TKCell], ABC):
                                 for instance_name, info in v.items()
                             }
 
-                if not self.is_library_cell():
+                if local or not self.is_library_cell():
                     for index in sorted(port_dict.keys()):
                         v = port_dict[index]
                         xs = self.kcl.get_base_cross_section(

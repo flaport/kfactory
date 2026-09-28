@@ -227,7 +227,16 @@ class FactoryContext:
             if name not in CONFIG_RUNTIME
         }
         configuration["global_extra"] = self.encode(kf.config.model_extra)
-        factories = {factory.qualified_name: self.describe_factory(factory) for factory in self.factories}
+        factories = {}
+        self.unsupported = {}
+        for factory in self.factories:
+            try:
+                if not factory.persistent:
+                    raise NotPersistable("factory explicitly opts out of persistence")
+                factories[factory.qualified_name] = self.describe_factory(factory)
+            except NotPersistable as reason:
+                self.unsupported[factory.qualified_name] = str(reason)
+                factories[factory.qualified_name] = ("uncached", str(reason))
         return (configuration, factories)
 
     def accept_output_registrations(self):

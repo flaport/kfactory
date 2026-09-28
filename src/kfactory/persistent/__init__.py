@@ -23,6 +23,7 @@ class Frame:
     build: object
     before: set
     persistable: bool = True
+    names: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -50,6 +51,10 @@ class FactoryCacheView(Mapping):
     def clear(self):
         self.authority.invalidate(self.factory.qualified_name)
 
+    def __delitem__(self, key):
+        # Removing a memo entry means recomputation, including in other processes.
+        self.clear()
+
 
 class PersistentCache:
     def __init__(self, layout, path):
@@ -69,6 +74,10 @@ class PersistentCache:
         self.proofs = {}
         self.diagnostics = []
         self.fallback_depth = 0
+
+    def record_name(self, cell, requested, actual):
+        if self.frames:
+            self.frames[-1].names[cell.cell_index()] = (requested, actual)
 
     def view(self, factory):
         return FactoryCacheView(self, factory)
@@ -145,10 +154,24 @@ class PersistentCache:
         self.store.invalidate(self.layout.name, producer)
         self.entries = {key: value for key, value in self.entries.items() if key[0] != producer}
 
+    def invalidate_all(self):
+        for factory in self.layout.factories.all():
+            self.invalidate(factory.qualified_name)
+        self.native.forget_client()
+        self.entries.clear()
+        self.cells.clear()
+        self.proofs.clear()
+        for frame in self.frames:
+            frame.persistable = False
+
     def declare_file(self, path):
+        if self.fallback_depth:
+            return
         self._frame().build.observe_file(path)
 
     def declare_environment(self, name):
+        if self.fallback_depth:
+            return
         self._frame().build.observe_environment(name)
 
     def set_value(self, name, value):
@@ -160,12 +183,14 @@ class PersistentCache:
     def declare_value(self, name, value):
         encoded = canonical(value)
         self.values.set_value(name, encoded)
-        self._frame().build.observe_value(name, encoded)
+        if not self.fallback_depth:
+            self._frame().build.observe_value(name, encoded)
 
     def declare_version(self, name, value):
         encoded = canonical(value)
         self.values.set_version(name, encoded)
-        self._frame().build.observe_version(name, encoded)
+        if not self.fallback_depth:
+            self._frame().build.observe_version(name, encoded)
 
     def _frame(self):
         if not self.frames:
@@ -212,6 +237,10 @@ class PersistentCache:
         outer = not self.frames
         try:
             context = self._context()
+            if not factory.persistent or factory.qualified_name not in self.context.factory_names:
+                raise NotPersistable("factory opts out or is not registered in the context")
+            if factory.qualified_name in self.context.unsupported:
+                raise NotPersistable(self.context.unsupported[factory.qualified_name])
             self._check_provenance()
             for pending_cell, expected in self.pending_proofs.values():
                 if self._fingerprint(pending_cell) != expected:
@@ -280,6 +309,10 @@ class PersistentCache:
                     pending.extend(item.child_cells())
                 prepared = self.store.prepare(frame.build, self.layout.layout, cell.cell_index(), owned,
                                               stored=stored, staged=self.staged)
+                for ordinal, index in enumerate(owned):
+                    intended = frame.names.get(index)
+                    if intended is not None and self.layout.layout.cell(index).name == intended[1]:
+                        prepared.set_cell_name(ordinal, intended[0])
                 for index in owned:
                     wrapped = self.layout.get_cell(index)
                     self.pending_proofs[index] = (wrapped, self._fingerprint(wrapped))
@@ -299,6 +332,7 @@ class PersistentCache:
                         wrapped = self.layout.get_cell(index)
                         self.proofs[index] = (wrapped, self._fingerprint(wrapped))
             except NotPersistable as reason:
+                entry = None
                 self._diagnose(factory, reason)
             return cell
         finally:

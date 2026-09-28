@@ -433,7 +433,9 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
             type | UnionType | TypeAliasType, Callable[[Any], Any]
         ]
         | None = None,
+        persistent: bool = True,
     ) -> None:
+        self.persistent = persistent
         self.kcl = kcl
         self.output_type = output_type
         self.name = basename or get_function_name(f)
@@ -562,9 +564,11 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
                     _overwrite_existing(name_, cell, kcl)
                 if set_name and name_:
                     if kcl.persistent_cache is not None:
+                        requested_name = name_
                         existing = kcl.layout_cell(name_)
                         if existing is not None and existing.index != cell.cell_index():
                             name_ = kcl.layout.unique_cell_name(name_)
+                        kcl.persistent_cache.record_name(cell, requested_name, name_)
                     if debug_names and cell.kcl.layout_cell(name_) is not None:
                         logger.opt(depth=4).error(
                             "KCell with name {name} exists already. Duplicate "

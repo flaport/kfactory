@@ -1327,6 +1327,7 @@ class KCLayout(
         register_factory: bool = ...,
         overwrite_existing: bool | None = ...,
         layout_cache: bool | None = ...,
+        persistent: bool = ...,
         info: dict[str, MetaData] | None = ...,
         debug_names: bool | None = ...,
         tags: list[str] | None = ...,
@@ -1354,6 +1355,7 @@ class KCLayout(
         register_factory: bool = ...,
         overwrite_existing: bool | None = ...,
         layout_cache: bool | None = ...,
+        persistent: bool = ...,
         info: dict[str, MetaData] | None = ...,
         debug_names: bool | None = ...,
         tags: list[str] | None = ...,
@@ -1381,6 +1383,7 @@ class KCLayout(
         register_factory: bool = ...,
         overwrite_existing: bool | None = ...,
         layout_cache: bool | None = ...,
+        persistent: bool = ...,
         info: dict[str, MetaData] | None = ...,
         post_process: Iterable[Callable[[KC], None]],
         debug_names: bool | None = ...,
@@ -1409,6 +1412,7 @@ class KCLayout(
         register_factory: bool = ...,
         overwrite_existing: bool | None = ...,
         layout_cache: bool | None = ...,
+        persistent: bool = ...,
         info: dict[str, MetaData] | None = ...,
         post_process: Iterable[Callable[[KC], None]],
         debug_names: bool | None = ...,
@@ -1438,6 +1442,7 @@ class KCLayout(
         register_factory: bool = ...,
         overwrite_existing: bool | None = ...,
         layout_cache: bool | None = ...,
+        persistent: bool = ...,
         info: dict[str, MetaData] | None = ...,
         post_process: Iterable[Callable[[KC], None]],
         debug_names: bool | None = ...,
@@ -1469,6 +1474,7 @@ class KCLayout(
         register_factory: bool = ...,
         overwrite_existing: bool | None = ...,
         layout_cache: bool | None = ...,
+        persistent: bool = ...,
         info: dict[str, MetaData] | None = ...,
         post_process: Iterable[Callable[[KC], None]],
         debug_names: bool | None = ...,
@@ -1500,6 +1506,7 @@ class KCLayout(
         register_factory: bool = ...,
         overwrite_existing: bool | None = ...,
         layout_cache: bool | None = ...,
+        persistent: bool = ...,
         info: dict[str, MetaData] | None = ...,
         debug_names: bool | None = ...,
         tags: list[str] | None = ...,
@@ -1530,6 +1537,7 @@ class KCLayout(
         register_factory: bool = ...,
         overwrite_existing: bool | None = ...,
         layout_cache: bool | None = ...,
+        persistent: bool = ...,
         info: dict[str, MetaData] | None = ...,
         debug_names: bool | None = ...,
         tags: list[str] | None = ...,
@@ -1560,6 +1568,7 @@ class KCLayout(
         register_factory: bool = True,
         overwrite_existing: bool | None = None,
         layout_cache: bool | None = None,
+        persistent: bool = True,
         info: dict[str, MetaData] | None = None,
         post_process: Iterable[Callable[[KC], None]] | None = None,
         debug_names: bool | None = None,
@@ -1600,6 +1609,9 @@ class KCLayout(
                 (only x/y, not angle).
             add_port_layers: Add special layers of `KCLayout.netlist_layer_mapping`
                 to the ports if the port layer is in the mapping.
+            persistent: Allow this recipe to persist when this KCLayout has a
+                cache_path. False runs it uncached through the authority and also
+                prevents dependent parents from persisting untracked work.
             cache: Provide a user defined cache instead of an internal one. This
                 can be used for example to clear the cache.
                 expensive if the cell is called often).
@@ -1686,6 +1698,7 @@ class KCLayout(
                 drop_params=drop_params,
                 overwrite_existing=overwrite_existing,
                 layout_cache=layout_cache,
+                persistent=persistent,
                 info=info,
                 post_process=post_process,  # ty:ignore[invalid-argument-type]
                 debug_names=debug_names,
@@ -1992,6 +2005,8 @@ class KCLayout(
 
         If the layout is cleared, all the LayerEnums and
         """
+        if self.persistent_cache is not None:
+            self.persistent_cache.invalidate_all()
         for c in self.layout.find_cells("*"):
             c.locked = False
         self.layout.clear()
@@ -2696,6 +2711,8 @@ class KCLayout(
 
     def clear_kcells(self) -> None:
         """Clears all cells in the Layout object."""
+        if self.persistent_cache is not None:
+            self.persistent_cache.invalidate_all()
         for kc in self.kcells.values():
             kc.locked = False
         for tc in self.top_kcells():

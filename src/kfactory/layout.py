@@ -2006,7 +2006,7 @@ class KCLayout(
         If the layout is cleared, all the LayerEnums and
         """
         if self.persistent_cache is not None:
-            self.persistent_cache.invalidate_all()
+            self.persistent_cache.invalidate_all(reset_context=True)
         for c in self.layout.find_cells("*"):
             c.locked = False
         self.layout.clear()

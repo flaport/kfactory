@@ -85,6 +85,8 @@ class PersistentCache:
     def _context(self):
         if self.context is None:
             self.context = FactoryContext(self.layout, self.path)
+        if self.frames:
+            self.context.accept_output_registrations()
         self.context.check()
         return bytes.fromhex(self.context.identity)
 
@@ -154,7 +156,11 @@ class PersistentCache:
         self.store.invalidate(self.layout.name, producer)
         self.entries = {key: value for key, value in self.entries.items() if key[0] != producer}
 
-    def invalidate_all(self):
+    def invalidate_all(self, *, reset_context=False):
+        if reset_context and self.frames:
+            raise RuntimeError("cannot clear the layout during a persistent factory build")
+        if reset_context and self.context is not None:
+            self.context.check()
         for factory in self.layout.factories.all():
             self.invalidate(factory.qualified_name)
         self.native.forget_client()
@@ -163,6 +169,8 @@ class PersistentCache:
         self.proofs.clear()
         for frame in self.frames:
             frame.persistable = False
+        if reset_context:
+            self.context = None
 
     def declare_file(self, path):
         if self.fallback_depth:
@@ -343,3 +351,4 @@ class PersistentCache:
                 self.pending_entries.clear()
                 self.pending_cells.clear()
                 self.pending_proofs.clear()
+                self.context.accept_output_registrations()

@@ -352,6 +352,7 @@ class KCLayout(
     info: Info = Field(default_factory=Info)
     settings: KCellSettings = Field(frozen=True)
     _future_cell_name: str | None = PrivateAttr(default=None)
+    _persistent_cache: Any = PrivateAttr(default=None)
     _metadata_registry: FactoryMetadataRegistry = PrivateAttr(
         default_factory=FactoryMetadataRegistry
     )
@@ -399,6 +400,7 @@ class KCLayout(
         ]
         | None = None,
         technology_file: Path | str | None = None,
+        cache_path: Path | str | None = None,
     ) -> None:
         """Create a new KCLayout (PDK). Can be based on an old KCLayout.
 
@@ -483,6 +485,14 @@ class KCLayout(
         self.interconnect_cml_path = interconnect_cml_path
 
         kcls[self.name] = self
+        if cache_path is not None:
+            from .persistent import PersistentCache
+            self._persistent_cache = PersistentCache(self, cache_path)
+
+    @property
+    def persistent_cache(self):
+        """Persistent authority and dependency declarations, or None in ordinary mode."""
+        return self._persistent_cache
 
     @field_validator("infos", mode="before")
     @classmethod

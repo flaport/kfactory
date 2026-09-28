@@ -472,6 +472,13 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
             )
 
             with kcl.thread_lock:
+                if kcl.persistent_cache is not None:
+                    def execute():
+                        cell_ = wrapped_cell.__wrapped__(**params)
+                        if info is not None:
+                            cell_.info.update(info)
+                        return cell_
+                    return kcl.persistent_cache.call(self, params, execute)
                 cell_ = wrapped_cell(**params)
                 if cell_.destroyed():
                     # If any cell has been destroyed, we should clean up the cache.
@@ -513,7 +520,7 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
                     else:
                         name = get_cell_name(self.name, **params)
                     kcl._future_cell_name = name
-                    if layout_cache:
+                    if layout_cache and kcl.persistent_cache is None:
                         if overwrite_existing:
                             for c in list(kcl.cells(name)):
                                 _overwrite_existing(name, kcl[c.index], kcl)
@@ -551,9 +558,13 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
                     # If the cell is locked, it likely comes
                     # from a cache and should be copied first
                     cell = cell.dup(new_name=kcl._future_cell_name)
-                if overwrite_existing:
+                if overwrite_existing and kcl.persistent_cache is None:
                     _overwrite_existing(name_, cell, kcl)
                 if set_name and name_:
+                    if kcl.persistent_cache is not None:
+                        existing = kcl.layout_cell(name_)
+                        if existing is not None and existing.index != cell.cell_index():
+                            name_ = kcl.layout.unique_cell_name(name_)
                     if debug_names and cell.kcl.layout_cell(name_) is not None:
                         logger.opt(depth=4).error(
                             "KCell with name {name} exists already. Duplicate "
@@ -675,7 +686,7 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
 
         self._f = wrapper_autocell
         self._f_orig = f
-        self.cache = cache
+        self.cache = kcl.persistent_cache.view(self) if kcl.persistent_cache is not None else cache
         self.lvs_equivalent_ports = lvs_equivalent_ports
         functools.update_wrapper(self, f)
 
@@ -694,6 +705,9 @@ class WrappedKCellFunc[**KCellParams, KC: ProtoTKCell[Any]]:
         return f"{self._f_orig.__module__}.{self._f_orig.__qualname__}"  # ty:ignore[unresolved-attribute]
 
     def prune(self) -> None:
+        if self.kcl.persistent_cache is not None:
+            self.kcl.persistent_cache.invalidate(self.qualified_name)
+            return
         cells = [c for c in self.cache.values() if not c.destroyed()]
         caller_cis = {
             ci for cell in cells for ci in cell.caller_cells() if not cell.destroyed()

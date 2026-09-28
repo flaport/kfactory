@@ -1,0 +1,311 @@
+"""Optional persistent factory authority backed by RLayout's Rust store.
+
+Enable with ``KCLayout(..., cache_path=...)``. Source/configuration is stable for
+one process: a watched edit requires a clean restart. Unsupported recipes run
+uncached and expose a diagnostic; arbitrary I/O needs explicit declarations.
+"""
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+import hashlib
+from pathlib import Path
+
+from rlayout import factory as native
+
+from .. import kdb
+from ..cross_section import SymmetricalCrossSection, AsymmetricalCrossSection
+from ..enclosure import LayerEnclosure
+from ._context import FactoryContext
+from ._source import NotPersistable, SourceContextChanged, canonical
+
+
+@dataclass
+class Frame:
+    build: object
+    before: set
+    persistable: bool = True
+
+
+@dataclass
+class Entry:
+    cell: object
+    result: bytes
+    producer: str
+    call: bytes
+
+
+class FactoryCacheView(Mapping):
+    """Inspection and durable invalidation; never a second hit authority."""
+    def __init__(self, authority, factory):
+        self.authority, self.factory = authority, factory
+
+    def __iter__(self):
+        return iter(self.authority.inspect(self.factory))
+
+    def __len__(self):
+        return len(self.authority.inspect(self.factory))
+
+    def __getitem__(self, key):
+        return self.authority.inspect(self.factory)[key]
+
+    def clear(self):
+        self.authority.invalidate(self.factory.qualified_name)
+
+
+class PersistentCache:
+    def __init__(self, layout, path):
+        self.layout = layout
+        self.path = Path(path).resolve()
+        self.store = native.Store(self.path)
+        self.native = native.LayoutCache(layout.layout)
+        self.context = None
+        self.values = native.InputValues()
+        self.frames = []
+        self.staged = []
+        self.pending_entries = {}
+        self.pending_cells = {}
+        self.pending_proofs = {}
+        self.entries = {}
+        self.cells = {}
+        self.proofs = {}
+        self.diagnostics = []
+        self.fallback_depth = 0
+
+    def view(self, factory):
+        return FactoryCacheView(self, factory)
+
+    def _context(self):
+        if self.context is None:
+            self.context = FactoryContext(self.layout, self.path)
+        self.context.check()
+        return bytes.fromhex(self.context.identity)
+
+    def _diagnose(self, factory, reason):
+        item = (factory.qualified_name, str(reason))
+        if item not in self.diagnostics:
+            self.diagnostics.append(item)
+
+    def _sync_metadata(self, cell):
+        # KFactory's writer clears metadata before writing its own records.
+        # Preserve unrelated native metadata across that existing conversion.
+        other = [m for m in cell.kdb_cell.meta_info() if not m.name.startswith("kfactory:")]
+        cell.set_meta_data()
+        for metadata in other:
+            cell.kdb_cell.add_meta_info(metadata)
+        definitions = {}
+        for port in cell.ports:
+            xs = port.base.any_cross_section
+            definitions[xs.name] = ("symmetric" if isinstance(xs, SymmetricalCrossSection) else "asymmetric", xs.model_dump())
+        if definitions:
+            cell.kdb_cell.add_meta_info(kdb.LayoutMetaInfo("kfactory:cache:cross_sections", definitions, "", True))
+
+    def _restore_port_definitions(self, cell):
+        for metadata in cell.kdb_cell.meta_info():
+            if metadata.name != "kfactory:cache:cross_sections":
+                continue
+            for kind, record in metadata.value.values():
+                data = dict(record)
+                if kind == "symmetric":
+                    data["enclosure"] = LayerEnclosure(**data["enclosure"])
+                    self.layout.get_symmetrical_cross_section(SymmetricalCrossSection(**data))
+                elif kind == "asymmetric":
+                    self.layout.get_asymmetrical_cross_section(AsymmetricalCrossSection(**data))
+                else:
+                    raise ValueError("unsupported cached port-definition kind")
+
+    def _fingerprint(self, cell):
+        if cell.destroyed() or cell.is_library_cell():
+            raise NotPersistable("deleted cells or library proxies need tracked source provenance")
+        self._sync_metadata(cell)
+        return self.native.cell_fingerprint(cell.kdb_cell)
+
+    def _check_provenance(self):
+        for cell, expected in self.proofs.values():
+            try:
+                current = self._fingerprint(cell)
+            except (NotPersistable, ValueError):
+                current = None
+            if current != expected:
+                self.native.forget_client()
+                self.cells.clear()
+                self.proofs.clear()
+                self.entries.clear()
+                for frame in self.frames:
+                    frame.persistable = False
+                return False
+        return True
+
+    def inspect(self, factory):
+        context = self._context()
+        self._check_provenance()
+        return {call: entry.cell for (producer, call), entry in self.entries.items()
+                if producer == factory.qualified_name
+                and self.store.invalid_reason(entry.result, context, self.values) is None}
+
+    def invalidate(self, producer):
+        self.store.invalidate(self.layout.name, producer)
+        self.entries = {key: value for key, value in self.entries.items() if key[0] != producer}
+
+    def declare_file(self, path):
+        self._frame().build.observe_file(path)
+
+    def declare_environment(self, name):
+        self._frame().build.observe_environment(name)
+
+    def set_value(self, name, value):
+        self.values.set_value(name, canonical(value))
+
+    def set_version(self, name, value):
+        self.values.set_version(name, canonical(value))
+
+    def declare_value(self, name, value):
+        encoded = canonical(value)
+        self.values.set_value(name, encoded)
+        self._frame().build.observe_value(name, encoded)
+
+    def declare_version(self, name, value):
+        encoded = canonical(value)
+        self.values.set_version(name, encoded)
+        self._frame().build.observe_version(name, encoded)
+
+    def _frame(self):
+        if not self.frames:
+            raise RuntimeError("dependency declarations require an active persistent factory call")
+        return self.frames[-1]
+
+    def _record(self, entry):
+        if self.frames:
+            if entry is None:
+                self.frames[-1].persistable = False
+            else:
+                self.frames[-1].build.observe_result(entry.result)
+
+    def _load(self, factory, result, context, call):
+        root = self.store.materialize_into(self.native, result, context, self.values)
+        root_key = None
+        # Geometry closure includes source-only cells; only actual client cells
+        # are returned by native.cell, preserving source ownership distinctions.
+        # The root's ordinal is obtained from the catalog's explicit metadata.
+        root_key = self.store.root(result)
+        for key in self.store.geometry_closure(root_key):
+            native_cell = self.native.cell(key)
+            if native_cell is None:
+                continue
+            cell = self.layout.get_cell(native_cell.index, factory.output_type)
+            if native_cell.index not in self.cells:
+                locked = cell.locked
+                try:
+                    cell.locked = False
+                    self._restore_port_definitions(cell)
+                    cell.get_meta_data()
+                finally:
+                    cell.locked = locked
+            self.cells[native_cell.index] = key
+            self.proofs[native_cell.index] = (cell, self._fingerprint(cell))
+        self.context.accept_output_registrations()
+        self.context.check()
+        cell = self.layout.get_cell(root.index, factory.output_type)
+        return Entry(cell, result, factory.qualified_name, call)
+
+    def call(self, factory, params, execute):
+        if self.fallback_depth:
+            return execute()
+        outer = not self.frames
+        try:
+            context = self._context()
+            self._check_provenance()
+            for pending_cell, expected in self.pending_proofs.values():
+                if self._fingerprint(pending_cell) != expected:
+                    for frame in self.frames:
+                        frame.persistable = False
+                    self.pending_entries.clear()
+                    break
+            call = hashlib.sha256(self.context.encode(params)).digest()
+        except NotPersistable as reason:
+            self._diagnose(factory, reason)
+            self._record(None)
+            self.fallback_depth += 1
+            try:
+                return execute()
+            finally:
+                self.fallback_depth -= 1
+        key = (factory.qualified_name, call)
+        pending = self.pending_entries.get(key)
+        if pending is not None:
+            self.context.check()
+            self._record(pending)
+            return pending.cell
+        current = self.entries.get(key)
+        if current is not None and self.store.invalid_reason(current.result, context, self.values) is None:
+            self.context.check()
+            self._record(current)
+            return current.cell
+        for result in self.store.variants(self.layout.name, factory.qualified_name, call):
+            if self.store.invalid_reason(result, context, self.values) is None:
+                entry = self._load(factory, result, context, call)
+                self.entries[key] = entry
+                self._record(entry)
+                return entry.cell
+        frame = Frame(self.store.begin_build(self.layout.name, factory.qualified_name, call, context),
+                      {cell.index for cell in self.layout.layout.each_cell()})
+        self.frames.append(frame)
+        entry = None
+        try:
+            cell = execute()
+            self.context.accept_output_registrations()
+            self.context.check()
+            try:
+                if not frame.persistable:
+                    raise NotPersistable("a nested call has untracked inputs")
+                if cell.kcl is not self.layout:
+                    raise NotPersistable("result belongs to another KCLayout")
+                owned, stored, pending = [], [], [cell.kdb_cell]
+                seen = set()
+                while pending:
+                    item = pending.pop()
+                    if item.index in seen:
+                        continue
+                    seen.add(item.index)
+                    existing = self.pending_cells.get(item.index, self.cells.get(item.index))
+                    if existing is not None and item.index != cell.cell_index():
+                        stored.append((item.index, existing))
+                        continue
+                    if item.is_library_cell():
+                        raise NotPersistable("library proxies need source-aware automatic provenance")
+                    if item.index in frame.before:
+                        raise NotPersistable("untracked preexisting native cell in result hierarchy")
+                    owned.append(item.index)
+                    wrapped = self.layout.get_cell(item.index)
+                    self._sync_metadata(wrapped)
+                    item.locked = True
+                    pending.extend(item.child_cells())
+                prepared = self.store.prepare(frame.build, self.layout.layout, cell.cell_index(), owned,
+                                              stored=stored, staged=self.staged)
+                for index in owned:
+                    wrapped = self.layout.get_cell(index)
+                    self.pending_proofs[index] = (wrapped, self._fingerprint(wrapped))
+                self.staged.append(prepared)
+                self.pending_cells.update({index: (prepared.id, ordinal) for ordinal, index in enumerate(owned)})
+                entry = Entry(cell, prepared.id, factory.qualified_name, call)
+                self.pending_entries[key] = entry
+                if outer:
+                    self.context.check()
+                    if not self._check_provenance() or any(self._fingerprint(c) != proof for c, proof in self.pending_proofs.values()):
+                        raise NotPersistable("native inputs changed during the build")
+                    self.store.publish_batch(self.staged, self.values)
+                    self.store.remember_cells(self.native, [(key, index) for index, key in self.pending_cells.items()])
+                    self.cells.update(self.pending_cells)
+                    self.entries.update(self.pending_entries)
+                    for index in self.pending_cells:
+                        wrapped = self.layout.get_cell(index)
+                        self.proofs[index] = (wrapped, self._fingerprint(wrapped))
+            except NotPersistable as reason:
+                self._diagnose(factory, reason)
+            return cell
+        finally:
+            self.frames.pop()
+            self._record(entry)
+            if outer:
+                self.staged.clear()
+                self.pending_entries.clear()
+                self.pending_cells.clear()
+                self.pending_proofs.clear()

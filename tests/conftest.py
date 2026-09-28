@@ -61,8 +61,21 @@ def layers() -> Layers:
 
 
 @pytest.fixture
-def kcl(request: pytest.FixtureRequest) -> kf.KCLayout:
-    return kf.KCLayout(name=kf.kcell.clean_name(request.node.name), infos=Layers)
+def kcl(request: pytest.FixtureRequest) -> Iterator[kf.KCLayout]:
+    persistent = request.config.getoption("--persistent-test-cache")
+    cache_path = request.getfixturevalue("tmp_path") / "factory.sqlite" if persistent else None
+    layout = kf.KCLayout(name=kf.kcell.clean_name(request.node.name), infos=Layers,
+                         cache_path=cache_path)
+    yield layout
+    if persistent:
+        assert layout.persistent_cache is not None
+        assert not layout.persistent_cache.diagnostics
+        assert layout.persistent_cache.cells, "selected test must publish a persistent result"
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption("--persistent-test-cache", action="store_true",
+                     help="Use a persistent KCLayout fixture for selected compatible tests")
 
 
 @pytest.fixture

@@ -66,7 +66,7 @@ class CacheSession:
 
     def accept_active_outputs(self):
         for member in self.members:
-            if member.frames:
+            if member.frames or member.generic_depth:
                 member.context.accept_output_registrations()
 
     def mark_untracked(self):

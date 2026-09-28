@@ -2992,7 +2992,11 @@ class KCLayout(
 
             @functools.wraps(func)
             def wrapper(*args: Any, **kwargs: Any) -> ProtoTKCell[Any] | VKCell:
-                c = func(*args, **kwargs)
+                if self.persistent_cache is None:
+                    c = func(*args, **kwargs)
+                else:
+                    with self.thread_lock, self.persistent_cache.generic_scope():
+                        c = func(*args, **kwargs)
                 if c.kcl is not self:
                     raise ValueError(
                         f"generic_factory {factory_name!r} returned a cell from"

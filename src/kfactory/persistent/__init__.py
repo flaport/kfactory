@@ -5,6 +5,7 @@ one process: a watched edit requires a clean restart. Unsupported recipes run
 uncached and expose a diagnostic; arbitrary I/O needs explicit declarations.
 """
 from collections.abc import Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 import hashlib
 from pathlib import Path
@@ -79,6 +80,7 @@ class PersistentCache:
         self.proofs = {}
         self.diagnostics = []
         self.fallback_depth = 0
+        self.generic_depth = 0
 
     def watch_source_root(self, path):
         """Watch an additional source directory/file, before the first call.
@@ -135,6 +137,23 @@ class PersistentCache:
         self.session.accept_active_outputs()
         self.session.check()
         return bytes.fromhex(self.context.identity)
+
+    @contextmanager
+    def generic_scope(self):
+        """Track definitions generated while normalizing a generic factory call."""
+        try:
+            self._context()
+        except NotPersistable:
+            # The delegated cell call provides the normal uncached diagnostic.
+            yield
+            return
+        self.generic_depth += 1
+        try:
+            yield
+        finally:
+            self.generic_depth -= 1
+            self.context.accept_output_registrations()
+            self.context.check()
 
     def _diagnose(self, factory, reason):
         item = (factory.qualified_name, str(reason))

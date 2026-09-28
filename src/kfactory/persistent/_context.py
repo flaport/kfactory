@@ -11,8 +11,8 @@ from pathlib import Path
 import sys
 import sysconfig
 from types import FunctionType, ModuleType, UnionType
-from typing import TypeAliasType
-from typing import get_args
+from typing import Annotated, TypeAliasType
+from typing import get_args, get_origin
 
 import kfactory as kf
 from pydantic import BaseModel
@@ -107,6 +107,10 @@ class FactoryContext:
     def adapt(self, value):
         if value is inspect.Parameter.empty:
             return ("missing-parameter",)
+        if value is kf.logger:
+            # Standard SDK diagnostics do not supply layout inputs. Custom
+            # logger objects/callbacks still need their own supported boundary.
+            return ("sdk-logger",)
         if value is self.layout or any(value is peer for peer in self.peer_layouts):
             return ("KCLayout", value.name)
         if isinstance(value, ModuleType) and value.__name__.split(".")[0] in SDK_PACKAGES:
@@ -149,6 +153,8 @@ class FactoryContext:
             return ("path", str(value))
         if isinstance(value, UnionType):
             return ("union", tuple(self.encode(item) for item in get_args(value)))
+        if get_origin(value) is Annotated:
+            return ("annotated", tuple(self.encode(item) for item in get_args(value)))
         if isinstance(value, TypeAliasType) and value.__module__.split(".")[0] in SDK_PACKAGES:
             return ("sdk-type-alias", value.__module__, value.__name__)
         if isinstance(value, kf.decorators.SignatureParams):
@@ -161,6 +167,10 @@ class FactoryContext:
             return ("partial", self.encode(value.func), self.encode(value.args), self.encode(value.keywords))
         if isinstance(value, kf.kdb.LayerInfo):
             return ("LayerInfo", value.layer, value.datatype, value.name)
+        if type(value) in (kf.CrossSection, kf.DCrossSection,
+                           kf.AsymmetricCrossSection, kf.DAsymmetricCrossSection):
+            return ("cross-section", qualified(type(value)), self.encode(value.kcl),
+                    self.encode(value.base))
         if isinstance(value, BaseModel):
             if id(value) in self.active_models:
                 raise NotPersistable("cyclic configuration model")
@@ -170,7 +180,16 @@ class FactoryContext:
             for cls in type(value).__mro__:
                 if cls.__module__.split(".")[0] in SDK_PACKAGES | {"pydantic", "builtins"}:
                     continue
-                if any(isinstance(member, (FunctionType, classmethod, staticmethod, property)) for member in vars(cls).values()):
+                # Python 3.14's compiler supplies the lazy annotation thunk;
+                # Pydantic stores it as __annotate_func__ on field-only models.
+                # Actual field values and the class source root are tracked here.
+                # It is not a user-defined configuration method.
+                members = ((name, member) for name, member in vars(cls).items()
+                           if not (name == "__annotate_func__"
+                                   and isinstance(member, FunctionType)
+                                   and member.__code__.co_name == "__annotate__"
+                                   and member.__qualname__ == f"{cls.__qualname__}.__annotate__"))
+                if any(isinstance(member, (FunctionType, classmethod, staticmethod, property)) for _, member in members):
                     raise NotPersistable("custom configuration-model behavior needs an explicit recipe boundary")
             self.active_models.add(id(value))
             try:
@@ -215,8 +234,8 @@ class FactoryContext:
     def describe(self):
         if self.layout.factories.all() != self.factories:
             raise SourceContextChanged("factory registration changed; restart the context")
-        if self.layout.virtual_factories.all() or self.layout.generic_factories:
-            raise NotPersistable("virtual/generic factories need their own adapter boundary")
+        if self.layout.virtual_factories.all():
+            raise NotPersistable("virtual factories need their own adapter boundary")
         if self.layout._metadata_registry._records:
             raise NotPersistable("metadata providers need a recorded callable boundary")
         configuration = {
@@ -230,6 +249,10 @@ class FactoryContext:
         configuration["cross_sections"] = self.encode({name: value for name, value in self.layout.cross_sections.cross_sections.items() if name not in self.output_cross_sections})
         configuration["rename_function"] = self.encode(self.layout.rename_function)
         configuration["routing_strategies"] = self.encode(self.layout.routing_strategies)
+        # Generic factories normalize inputs and delegate to registered cell
+        # factories (the standard straight factory uses this path). They own no
+        # independent result cache. Track their source/captures as configuration.
+        configuration["generic_factories"] = self.encode(self.layout.generic_factories)
         configuration["global"] = {
             name: self.encode(getattr(kf.config, name)) for name in type(kf.config).model_fields
             if name not in CONFIG_RUNTIME
@@ -287,4 +310,3 @@ class FactoryContext:
 
     def layer_table(self):
         return {index: self.encode(self.layout.get_info(index)) for index in self.layout.layer_indexes()}
-
